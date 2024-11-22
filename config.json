@@ -1,0 +1,15 @@
+{
+    "openAi": {
+        
+    },
+    "discord": {
+        "gatewayBaseUrl": "wss://gateway.discord.gg",
+        "gatewayVersion": 10,
+        "intents": 513,
+        "properties": {
+            "os": "",
+            "browser": "",
+            "device": ""
+        }
+    }
+}
