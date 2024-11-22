@@ -12,6 +12,7 @@ main();
 function main() {
     const discordClient = { };
     const allHistory = [ ];
+    const rateLimits = [];
 
     const gateway = connectGateway();
     log(`Conecting to Discord gateway at '${gateway.gatewayUrl}'`);
@@ -27,7 +28,8 @@ function main() {
         sendPayload(2, {
             token: secrets.discordToken,
             intents: config.discord.intents,
-            properties: config.discord.properties
+            properties: config.discord.properties,
+            presence: config.discord.presence
         });
 
         // check history
@@ -49,7 +51,7 @@ function main() {
             const channelId = data.channel_id;
             const message = data.content;
             
-            if (!shouldRespond || !message) return;
+            if (!shouldRespond || !message || rateLimits.includes(channelId)) return;
 
             const promptObject = {
                 // stuff to pass to the prompt, like usernames etc
@@ -69,6 +71,7 @@ function main() {
                 channelId: channelId,
                 systemPrompt: formatString(systemPromptText, promptObject),
                 messages: [],
+                lastUpdated: Date.now()
             }) - 1];
 
             const prompt = formatString(promptText, promptObject);
@@ -76,12 +79,25 @@ function main() {
             // log("System prompt:", history.systemPrompt);
             // log("Prompt:", prompt);
 
+            // add rate limit
+            if (config.rateLimit) {
+                rateLimits.push(channelId);
+                setTimeout(() => {
+                    const index = rateLimits.findIndex(i => i === channelId);
+                    if (index >= 0) rateLimits.splice(index, 1);
+                }, config.rateLimit);
+            }
+
             generateResponse(prompt, history).then(response => {
-                // TODO: send response
-                log(`${message}: ${response.content}`);
-                sendMessage(channelId, response.content);
+                sendMessage(channelId, response.content).then(() => {
+                    log(`${message}: ${response.content}`);
+                }).catch(err => {
+                    log(`Failed to send generated response to channel '${channelId}':`, err);
+                    sendMessage(channelId, "couldnt send response it was probably too long or some shit");
+                });
             }).catch(err => {
-                // TODO: error handling
+                log(`Failed to generate response for channel '${channelId}':`, err);
+                sendMessage(channelId, `HAD AN ERROR NOOOOOOO\n\`\`\`\n${err}\n\`\`\``);
             });
         } else {
             // log(`Received unhandled event '${event}'`);
@@ -100,7 +116,6 @@ function main() {
     function sendHeartbeat() {
         sendPayload(1, null); // TODO: implement correctly: https://discord.com/developers/docs/events/gateway#heartbeat-interval
     }
-
 }
 
 function sendMessage(channelId, message) {
@@ -126,6 +141,7 @@ function sendMessage(channelId, message) {
 function checkHistory(allHistory) {
     for (let historyIndex = allHistory.length - 1; historyIndex >= 0; historyIndex--) {
         const history = allHistory[historyIndex];
+        // log(history);
         if (Date.now() - history.lastUpdated >= config.historyDelete) {
             // remove all history if unused for a while
             allHistory.splice(historyIndex, 1);
@@ -142,7 +158,8 @@ function generateResponse(prompt, history) {
             role: "user",
             content: prompt
         });
-
+        history.lastUpdated = Date.now();
+        
         // log([
         //     {
         //         role: "system",
@@ -172,6 +189,7 @@ function generateResponse(prompt, history) {
             // TODO: proper checks
             const message = response.choices[0].message;
             history.messages.push(message);
+            history.lastUpdated = Date.now();
             resolve(message);
         }).catch(err => {
             reject(err);
@@ -200,6 +218,7 @@ function connectGateway() {
     gateway.once = (event, callback) => listeners.push({ event, callback, once: true });
     gateway.sendJson = (json) => gateway.webSocket.send(JSON.stringify(json));
     gateway.sendText = (text) => gateway.webSocket.send(text);
+    gateway.close = (code) => gateway.webSocket.close(code);
     gateway.whileConnected = (callback, interval) => intervals.push(setInterval(callback, interval));
     
     const { webSocket } = gateway;
