@@ -9,6 +9,7 @@
     "logLocation": "latest.log",
     "rateLimit": 1000,
     "reply": true,
+    "replyMention": false,
     "promptData": {
         "name": "Linus",
         "personality": "Linus Sebastian from Linus Tech Tips (LTT). Linus is a well-known tech YouTuber with a unique persona and presentation style. This manual will guide you through key aspects of his character, demeanor, and presentation, helping you deliver an authentic and engaging portrayal."
@@ -21,7 +22,7 @@
     ],
     "users": [],
     "openAi": {
-        "apiBaseUrl": "",
+        "apiBaseUrl": "http://server:1234",
         "model": "gpt-4o-mini",
         "temperature": 0.7
     },

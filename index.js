@@ -94,8 +94,10 @@ function main() {
 
                 if (parsedResponse.ignored || !parsedResponse.message) return log(`${message.replace(/\n/g, " ")} > [IGNORED]`);
 
-                // TODO: reply based on config.reply bool
-                sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage).then(() => {
+                sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, {
+                    message_reference: config.reply ? { type: 0, message_id: data.id, channel_id: channelId, guild_id: guildId, fail_if_not_exists: false } : undefined,
+                    allowed_mentions: { replied_user: config.replyMention }
+                }).then(() => {
                     log(`${message.replace(/\n/g, " ")} > ${responseMessage.replace(/\n/g, " ")}`);
                 }).catch(err => {
                     log(`Failed to send generated response to channel '${channelId}':`, err);
@@ -124,7 +126,7 @@ function main() {
     }
 }
 
-function sendMessage(channelId, message) {
+function sendMessage(channelId, message, optional) {
     return new Promise((resolve, reject) => {
         fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/messages`, {
             method: "POST",
@@ -133,7 +135,8 @@ function sendMessage(channelId, message) {
                 Authorization: `${config.discord.isBot ? "Bot" : "Bearer"} ${secrets.discordToken}`
             },
             body: JSON.stringify({
-                content: message
+                content: message,
+                ...optional
             })
         }).then(i => i.json()).then(response => {
             // TODO: proper checks
@@ -150,9 +153,11 @@ function checkHistory(allHistory) {
         // log(history);
         if (Date.now() - history.lastUpdated >= config.historyDelete) {
             // remove all history if unused for a while
+            log(`Removing history for ${history.channelId}`);
             allHistory.splice(historyIndex, 1);
         } else if (history.messages.length > config.historyLength) {
             // keeps history within length
+            log(`Truncating history for ${history.channelId}`);
             history.messages.splice(0, history.messages.length - config.historyLength);
         }
     }
