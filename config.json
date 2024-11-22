@@ -1,11 +1,26 @@
 {
+    "reconnectTimeout": 1000,
+    "respondToBots": false,
+    "historyCheck": 5000,
+    "historyLength": 10,
+    "historyDelete": 600000,
+    "channels": [
+        "1132874647520682025"
+    ],
+    "servers": [],
+    "users": [],
     "openAi": {
-        
+        "apiBaseUrl": "https://api.openai.com",
+        "model": "gpt-4o-mini",
+        "temperature": 0.7
     },
     "discord": {
+        "isBot": true,
         "gatewayBaseUrl": "wss://gateway.discord.gg",
+        "apiBaseUrl": "https://discord.com/api",
+        "apiVersion": 10,
         "gatewayVersion": 10,
-        "intents": 513,
+        "intents": 37376,
         "properties": {
             "os": "",
             "browser": "",

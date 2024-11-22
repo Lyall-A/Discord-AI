@@ -1,0 +1,2 @@
+Author aliases: %{author.username}, %{globalName}, %{nickname}
+%{message}
