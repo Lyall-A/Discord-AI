@@ -1,2 +1,1 @@
-Username: %{author.username}, Name: %{globalName}, Nickname: %{nickname}
-%{message}
+{{author.id}} {{author.username}} aka {{member.nick}}: {{message}}

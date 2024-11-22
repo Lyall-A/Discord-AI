@@ -7,6 +7,8 @@ const config = require("./config.json");
 const systemPromptText = fs.readFileSync(config.systemPromptLocation, "utf-8");
 const promptText = fs.readFileSync(config.promptLocation, "utf-8");
 
+const responseParser = require("./responseParser");
+
 main();
 
 function main() {
@@ -55,15 +57,13 @@ function main() {
 
             const promptObject = {
                 // stuff to pass to the prompt, like usernames etc
-                author: data.author,
                 message,
-                globalName: data.author.global_name || "",
-                nickname: data.member.nick || "",
+                author: data.author,
                 member: data.member,
                 guildId: guildId,
                 channelId: channelId,
                 timestamp: data.timestamp,
-                prettyTimestamp: new Date(data.timestamp).toLocaleString(),
+                ...config.promptData
             };
             
             const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
@@ -89,8 +89,14 @@ function main() {
             }
 
             generateResponse(prompt, history).then(response => {
-                sendMessage(channelId, response.content).then(() => {
-                    log(`${message}: ${response.content}`);
+                const parsedResponse = responseParser(response.content);
+                const responseMessage = parsedResponse.message;
+
+                if (parsedResponse.ignored || !parsedResponse.message) return log(`${message.replace(/\n/g, " ")} > [IGNORED]`);
+
+                // TODO: reply based on config.reply bool
+                sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage).then(() => {
+                    log(`${message.replace(/\n/g, " ")} > ${responseMessage.replace(/\n/g, " ")}`);
                 }).catch(err => {
                     log(`Failed to send generated response to channel '${channelId}':`, err);
                     sendMessage(channelId, "couldnt send response it was probably too long or some shit");
@@ -247,10 +253,13 @@ function connectGateway() {
     return gateway;
 }
 
-function formatString(string, object) {
-    return string.replace(/%{(.*?)}/g, (match, group) => {
-        return group.split(".").reduce((acc, key) => acc && acc[key], object);
-    });
+function formatString(string, object = { }) {
+    // {{}} for objects
+    // (()) for eval (scary)
+    // TODO: escape/dont format replaced stuff, for example if &{'hello %{word}'} is included, it would fuck up
+    return string
+        .replace(/\\?{{(.*?)}}/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : eval(`${Object.entries(object).map(i => `const ${i[0]} = ${JSON.stringify(i[1])};`).join("\n")}\n${group}`))
+        .replace(/\\?\(\((.*?)\)\)/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : group.split(".").reduce((acc, key) => acc && acc[key], object));
 }
 
 function log(...msgs) {
