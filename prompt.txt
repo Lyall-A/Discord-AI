@@ -1,2 +1,2 @@
-Author aliases: %{author.username}, %{globalName}, %{nickname}
+Username: %{author.username}, Name: %{globalName}, Nickname: %{nickname}
 %{message}

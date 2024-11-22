@@ -4,8 +4,8 @@ const fs = require("fs");
 const secrets = require("./secrets.json");
 const config = require("./config.json");
 
-const systemPromptText = fs.readFileSync("system-prompt.txt", "utf-8");
-const promptText = fs.readFileSync("prompt.txt", "utf-8");
+const systemPromptText = fs.readFileSync(config.systemPromptLocation, "utf-8");
+const promptText = fs.readFileSync(config.promptLocation, "utf-8");
 
 main();
 
@@ -14,13 +14,13 @@ function main() {
     const allHistory = [ ];
 
     const gateway = connectGateway();
-    console.log(`Conecting to Discord gateway at '${gateway.gatewayUrl}'`);
+    log(`Conecting to Discord gateway at '${gateway.gatewayUrl}'`);
 
     // hello
     gateway.once("op-10", ({ d: data }) => {
         // heartbeat
         const { heartbeat_interval: heartbeatInterval } = data;
-        console.log(`Setting heartbeat interval to ${heartbeatInterval}`);
+        log(`Setting heartbeat interval to ${heartbeatInterval}`);
         gateway.whileConnected(sendHeartbeat, heartbeatInterval);
 
         // identify
@@ -40,7 +40,7 @@ function main() {
             discordClient.user = data.user;
             // discordClient.more shit, FUCK OFF!
 
-            console.log(`Online as ${discordClient.user.username}${discordClient.user.discriminator ? `#${discordClient.user.discriminator}` : ""} (${discordClient.user.id})`);
+            log(`Online as ${discordClient.user.username}${discordClient.user.discriminator ? `#${discordClient.user.discriminator}` : ""} (${discordClient.user.id})`);
         } else
         if (event === "MESSAGE_CREATE") {
             const shouldRespond = (data.author.bot && !config.respondToBots) ? false : config.channels?.includes(data.channel_id) || config.servers?.includes(data.guild_id) || config.users?.includes(data.author.id) || false;
@@ -73,22 +73,23 @@ function main() {
 
             const prompt = formatString(promptText, promptObject);
 
-            // console.log("System prompt:", history.systemPrompt);
-            // console.log("Prompt:", prompt);
+            // log("System prompt:", history.systemPrompt);
+            // log("Prompt:", prompt);
 
             generateResponse(prompt, history).then(response => {
                 // TODO: send response
+                log(`${message}: ${response.content}`);
                 sendMessage(channelId, response.content);
             }).catch(err => {
                 // TODO: error handling
             });
         } else {
-            // console.log(`Received unhandled event '${event}'`);
+            // log(`Received unhandled event '${event}'`);
         }
     });
 
     gateway.on("close", () => {
-        console.log(`Discord gateway closed, reconnecting in ${config.reconnectTimeout / 1000} second(s)...`);
+        log(`Discord gateway closed, reconnecting in ${config.reconnectTimeout / 1000} second(s)...`);
         setTimeout(main, config.reconnectTimeout);
     });
 
@@ -142,7 +143,7 @@ function generateResponse(prompt, history) {
             content: prompt
         });
 
-        // console.log([
+        // log([
         //     {
         //         role: "system",
         //         content: history.systemPrompt,
@@ -231,4 +232,11 @@ function formatString(string, object) {
     return string.replace(/%{(.*?)}/g, (match, group) => {
         return group.split(".").reduce((acc, key) => acc && acc[key], object);
     });
+}
+
+function log(...msgs) {
+    const timestamp = new Date().toLocaleString();
+    const message = [`[${timestamp}]`, ...msgs];
+    console.log(...message);
+    if (config.logLocation) fs.appendFileSync(config.logLocation, message.join(" ") + "\n");
 }

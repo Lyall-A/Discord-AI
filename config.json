@@ -2,15 +2,20 @@
     "reconnectTimeout": 1000,
     "respondToBots": false,
     "historyCheck": 5000,
-    "historyLength": 10,
+    "historyLength": 15,
     "historyDelete": 600000,
+    "promptLocation": "prompt.txt",
+    "systemPromptLocation": "system-prompt.txt",
+    "logLocation": "latest.log",
     "channels": [
         "1132874647520682025"
     ],
-    "servers": [],
+    "servers": [
+        "1309396066482786315"
+    ],
     "users": [],
     "openAi": {
-        "apiBaseUrl": "https://api.openai.com",
+        "apiBaseUrl": "http://server.vitim.us:1234",
         "model": "gpt-4o-mini",
         "temperature": 0.7
     },
