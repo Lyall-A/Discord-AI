@@ -47,13 +47,16 @@ function main() {
             log(`Online as ${discordClient.user.username}${discordClient.user.discriminator ? `#${discordClient.user.discriminator}` : ""} (${discordClient.user.id})`);
         } else
         if (event === "MESSAGE_CREATE") {
-            const shouldRespond = (data.author.bot && !config.respondToBots) ? false : config.channels?.includes(data.channel_id) || config.servers?.includes(data.guild_id) || config.users?.includes(data.author.id) || false;
-            
             const guildId = data.guild_id;
             const channelId = data.channel_id;
             const message = data.content;
             
-            if (!shouldRespond || !message || rateLimits.includes(channelId)) return;
+            if (!message) return; // no message (eg. attachment with no message content)
+            if (data.author.id === discordClient.user.id) return; // message from self
+            if (data.author.bot && !config.respondToBots) return; // bot
+            if (!config.channels?.includes(channelId) && !config.servers?.includes(guildId) && !config.users?.includes(data.author.id)) return; // not in list
+            if (config.ignorePrefix && message.startsWith(config.ignorePrefix)) return; // message starts with ignore prefix
+            if (rateLimits.includes(channelId)) return; // channel is rate limited
 
             const promptObject = {
                 // stuff to pass to the prompt, like usernames etc
