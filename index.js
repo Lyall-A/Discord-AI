@@ -14,6 +14,8 @@ fs.watchFile(config.promptLocation, () => promptText = fs.readFileSync(config.pr
 
 const responseParser = require("./responseParser");
 
+log(`${config.promptData.name ? `${config.promptData.name} is` : "I'm"} waking up... be scared`);
+
 main();
 
 function main() {
@@ -54,11 +56,12 @@ function main() {
             // discordClient.more shit, FUCK OFF!
 
             log(`Online as ${discordClient.user.username}${discordClient.user.discriminator ? `#${discordClient.user.discriminator}` : ""} (${discordClient.user.id})`);
+            log(`${discordClient.user.username} is awake, lock your doors`);
         } else
         if (event === "MESSAGE_CREATE") {
             const guildId = data.guild_id;
             const channelId = data.channel_id;
-            const message = data.content;
+            const message = data.content.replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.username);
             
             if (!message) return; // no message (eg. attachment with no message content)
             if (data.author.id === discordClient.user.id) return; // message from self
@@ -70,6 +73,7 @@ function main() {
             const promptObject = {
                 // stuff to pass to the prompt, like usernames etc
                 message,
+                me: discordClient,
                 author: data.author,
                 member: data.member,
                 guildId: guildId,
@@ -88,7 +92,7 @@ function main() {
             
             const prompt = formatString(promptText, promptObject);
 
-            // console.log("System prompt:", history.systemPrompt);
+            // console.log("System prompt:",promptText history.systemPrompt);
             // console.log("Prompt:", prompt);
 
             // add rate limit
@@ -106,11 +110,12 @@ function main() {
             };
 
             // get generated response
+            // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err));
             generateResponse(prompt, history).then(response => {
                 const parsedResponse = responseParser(response.content);
                 const responseMessage = parsedResponse.message;
 
-                if (parsedResponse.ignored || !parsedResponse.message) return log(`Message: ${message.replace(/\n/g, " ")} > [IGNORED]`);
+                if (parsedResponse.ignored || !parsedResponse.message) return log("Ignored:", message.replace(/\n/g, " "));
 
                 // send generated response to discord
                 sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions).then(() => {
@@ -142,19 +147,20 @@ function main() {
     }
 }
 
-function sendMessage(channelId, message, options) {
+function startTyping(channelId) {
     return new Promise((resolve, reject) => {
-        fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/messages`, {
+        fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/typing`, {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
-                Authorization: `${config.discord.isBot ? "Bot" : "Bearer"} ${secrets.discordToken}`
-            },
-            body: JSON.stringify({
-                content: message,
-                ...options
-            })
-        }).then(i => i.json()).then(response => {
+                Authorization: `${config.discord.isUser ? "Bearer" : "Bot"} ${secrets.discordToken}`
+            }
+        }).then(async response => {
+            // TODO: proper checks
+            if (response.status === 204) {
+                resolve();
+            } else {
+                reject();
+            }
             resolve();
         }).catch(err => {
             reject(err);
@@ -162,22 +168,30 @@ function sendMessage(channelId, message, options) {
     });
 }
 
-function checkHistory(allHistory) {
-    for (let historyIndex = allHistory.length - 1; historyIndex >= 0; historyIndex--) {
-        const history = allHistory[historyIndex];
-        // log(history);
-        const lastUpdated = Date.now() - history.lastUpdated;
-        const messagesLength = history.messages.length;
-        if (lastUpdated >= config.historyDelete) {
-            // remove all history if unused for a while
-            log(`Removing history for ${history.channelId}`);
-            allHistory.splice(historyIndex, 1);
-        } else if (messagesLength > config.historyLength) {
-            // keeps history within length
-            log(`Truncating history for ${history.channelId} (${messagesLength} > ${config.historyLength})`);
-            history.messages.splice(0, messagesLength - config.historyLength);
-        }
-    }
+function sendMessage(channelId, message, options) {
+    return new Promise((resolve, reject) => {
+        fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `${config.discord.isUser ? "Bearer" : "Bot"} ${secrets.discordToken}`
+            },
+            body: JSON.stringify({
+                content: message,
+                ...options
+            })
+        }).then(async response => {
+            // TODO: proper checks
+            // const json = await response.json();
+            if (response.status === 200) {
+                resolve();
+            } else {
+                reject();
+            }
+        }).catch(err => {
+            reject(err);
+        });
+    });
 }
 
 function generateResponse(prompt, history) {
@@ -188,6 +202,12 @@ function generateResponse(prompt, history) {
         });
         history.lastUpdated = Date.now();
 
+        const messages = [...history.messages];
+        if (history.systemPrompt) messages.unshift({
+            role: "system",
+            content: history.systemPrompt
+        });
+
         fetch(`${config.openAi.apiBaseUrl}/v1/chat/completions`, {
             method: "POST",
             headers: {
@@ -196,22 +216,21 @@ function generateResponse(prompt, history) {
             },
             body: JSON.stringify({
                 model: config.openAi.model,
-                messages: [
-                    {
-                        role: "system",
-                        content: history.systemPrompt,
-                    },
-                    ...history.messages
-                ],
+                messages,
                 temperature: config.openAi.temperature
             })
-        }).then(i => i.json()).then(response => {
+        }).then(async response => {
             // TODO: proper checks
-            debug(`Generated response used ${response.usage.prompt_tokens} tokens for prompt and ${response.usage.completion_tokens} tokens for completion (${response.usage.total_tokens} total)`);
-            const message = response.choices[0].message;
-            history.messages.push(message);
-            history.lastUpdated = Date.now();
-            resolve(message);
+            const json = await response.json();
+            if (response.status === 200) {
+                debug(`Generated response used ${json.usage.prompt_tokens} tokens for prompt and ${json.usage.completion_tokens} tokens for completion (${json.usage.total_tokens} total)`);
+                const message = json.choices[0].message;
+                history.messages.push(message);
+                history.lastUpdated = Date.now();
+                resolve(message);
+            } else {
+                reject();
+            }
         }).catch(err => {
             reject(err);
         });
@@ -268,6 +287,24 @@ function connectGateway() {
     return gateway;
 }
 
+function checkHistory(allHistory) {
+    for (let historyIndex = allHistory.length - 1; historyIndex >= 0; historyIndex--) {
+        const history = allHistory[historyIndex];
+        // log(history);
+        const lastUpdated = Date.now() - history.lastUpdated;
+        const messagesLength = history.messages.length;
+        if (lastUpdated >= config.historyDelete) {
+            // remove all history if unused for a while
+            log(`Removing history for channel '${history.channelId}'`);
+            allHistory.splice(historyIndex, 1);
+        } else if (messagesLength > config.historyLength) {
+            // keeps history within length
+            log(`Truncating history for channel '${history.channelId}' (${messagesLength} > ${config.historyLength})`);
+            history.messages.splice(0, messagesLength - config.historyLength);
+        }
+    }
+}
+
 function formatString(string, object = { }) {
     // {{}} for objects
     // (()) for eval (scary)
@@ -281,7 +318,7 @@ function formatString(string, object = { }) {
         }
 
         if (objectGroup) {
-            return objectGroup.split(".").reduce((acc, key) => acc && acc[key], object);
+            return objectGroup.split(".").reduce((acc, key) => acc && acc[key], object) ?? "";
         }
 
         return match;
