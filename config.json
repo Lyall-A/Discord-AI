@@ -9,7 +9,7 @@
     "systemPromptLocation": "system-prompt.txt",
     "logLocation": "latest.log",
     "rateLimit": 0,
-    "ignorePrefix": ["!"],
+    "ignorePrefix": ["!", "."],
     "reply": false,
     "replyMention": false,
     "ignoreHistory": true,
