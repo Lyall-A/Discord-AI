@@ -110,13 +110,19 @@ function main() {
                 allowed_mentions: { replied_user: config.replyMention }
             };
 
+            addHistory({ role: "user", content: prompt }, history);
+
             // get generated response
             // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err));
             generateResponse(prompt, history).then(response => {
                 const parsedResponse = responseParser(response.content);
                 const responseMessage = parsedResponse.message;
 
+                if (config.ignoreHistory) addHistory(response, history); // add response to history even if it is an ignored response
+
                 if (parsedResponse.ignored || !parsedResponse.message) return log("Ignored:", message.replace(/\n/g, " "));
+
+                if (!config.ignoreHistory) addHistory(response, history); // add response to history only if it isnt an ignored response
 
                 // send generated response to discord
                 sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions).then(() => {
@@ -197,12 +203,6 @@ function sendMessage(channelId, message, options) {
 
 function generateResponse(prompt, history) {
     return new Promise((resolve, reject) => {
-        history.messages.push({
-            role: "user",
-            content: prompt
-        });
-        history.lastUpdated = Date.now();
-
         const messages = [...history.messages];
         if (history.systemPrompt) messages.unshift({
             role: "system",
@@ -226,7 +226,6 @@ function generateResponse(prompt, history) {
             if (response.status === 200) {
                 debug(`Generated response used ${json.usage.prompt_tokens} tokens for prompt and ${json.usage.completion_tokens} tokens for completion (${json.usage.total_tokens} total)`);
                 const message = json.choices[0].message;
-                history.messages.push(message);
                 history.lastUpdated = Date.now();
                 resolve(message);
             } else {
@@ -286,6 +285,11 @@ function connectGateway() {
     });
 
     return gateway;
+}
+
+function addHistory(message, history) {
+    history.messages.push(message);
+    history.lastUpdated = Date.now();
 }
 
 function checkHistory(allHistory) {

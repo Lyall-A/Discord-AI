@@ -3,7 +3,7 @@
     "reconnectTimeout": 1000,
     "respondToBots": false,
     "historyCheck": 30000,
-    "historyLength": 20,
+    "historyLength": 26,
     "historyDelete": 600000,
     "promptLocation": "prompt.txt",
     "systemPromptLocation": "system-prompt.txt",
@@ -12,10 +12,11 @@
     "ignorePrefix": ["!"],
     "reply": false,
     "replyMention": false,
+    "ignoreHistory": false,
     "promptData": {
         "name": "Yoshino",
         "personality": "just be helpful",
-        "other": "Your username is yoshinosigma69\nStop using \"wut\" as an abbreviation\nStop using \"lol\" so much"
+        "other": "You are female\nYou are 20 years old\nYour username is yoshinosigma69\nStop using \"wut\" as an abbreviation\nStop using \"lol\" so much"
     },
     "channels": [
         "1132874647520682025",
