@@ -4,7 +4,8 @@ module.exports = (message) => {
     // console.log(message)
     return {
         ignored: /^(?:me:\s*)?--/i.test(message),
-        message: message.match(/^me: ?(.+)/i)?.[1]
+        // message: message.match(/^me:\s*(.+)/is)?.[1]
+        message: message.match(/^me:\s*(.+)/is)?.[1]
         // ignored: message.toLowerCase() === "ignored",
         // message
     };

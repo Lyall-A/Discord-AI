@@ -1,29 +1,31 @@
 {
+    "debug": false,
     "reconnectTimeout": 1000,
     "respondToBots": false,
-    "historyCheck": 5000,
-    "historyLength": 15,
+    "historyCheck": 30000,
+    "historyLength": 20,
     "historyDelete": 600000,
     "promptLocation": "prompt.txt",
     "systemPromptLocation": "system-prompt.txt",
     "logLocation": "latest.log",
     "rateLimit": 1000,
-    "ignorePrefix": "!",
-    "reply": true,
+    "ignorePrefix": ["!"],
+    "reply": false,
     "replyMention": false,
     "promptData": {
-        "name": "Snoop Dogg",
-        "personality": "You are and should act like the famous rapper Snoop Dogg"
+        "name": "Yoshino",
+        "personality": "just be helpful"
     },
     "channels": [
-        "1132874647520682025"
+        "1132874647520682025",
+        "1309851265764818954"
     ],
     "servers": [
         "1309396066482786315"
     ],
     "users": [],
     "openAi": {
-        "apiBaseUrl": "http://server:1234",
+        "apiBaseUrl": "http://victor:1234",
         "model": "gpt-4o-mini",
         "temperature": 0.7
     },

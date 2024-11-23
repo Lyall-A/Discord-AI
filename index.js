@@ -12,7 +12,10 @@ const responseParser = require("./responseParser");
 main();
 
 function main() {
-    const discordClient = { };
+    const discordClient = {
+        user: { },
+        lastSequenceNumber: null
+    };
     const allHistory = [ ];
     const rateLimits = [];
 
@@ -39,7 +42,8 @@ function main() {
     });
 
     // events (dispatch)
-    gateway.on("event", ({ t: event, d: data }) => {
+    gateway.on("event", ({ s: sequenceNumber, t: event, d: data }) => {
+        if (sequenceNumber !== null) discordClient.lastSequenceNumber = sequenceNumber;
         if (event === "READY") {
             discordClient.user = data.user;
             // discordClient.more shit, FUCK OFF!
@@ -55,7 +59,7 @@ function main() {
             if (data.author.id === discordClient.user.id) return; // message from self
             if (data.author.bot && !config.respondToBots) return; // bot
             if (!config.channels?.includes(channelId) && !config.servers?.includes(guildId) && !config.users?.includes(data.author.id)) return; // not in list
-            if (config.ignorePrefix && message.startsWith(config.ignorePrefix)) return; // message starts with ignore prefix
+            if (config.ignorePrefix && config.ignorePrefix?.find(i => message.startsWith(i))) return; // message starts with ignore prefix
             if (rateLimits.includes(channelId)) return; // channel is rate limited
 
             const promptObject = {
@@ -68,6 +72,7 @@ function main() {
                 timestamp: data.timestamp,
                 ...config.promptData
             };
+
             
             const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
             const history = historyIndex >= 0 ? allHistory[historyIndex] : allHistory[allHistory.push({
@@ -76,7 +81,7 @@ function main() {
                 messages: [],
                 lastUpdated: Date.now()
             }) - 1];
-
+            
             const prompt = formatString(promptText, promptObject);
 
             // log("System prompt:", history.systemPrompt);
@@ -91,27 +96,31 @@ function main() {
                 }, config.rateLimit);
             }
 
+            const messageOptions = {
+                message_reference: config.reply ? { type: 0, message_id: data.id, channel_id: channelId, guild_id: guildId, fail_if_not_exists: false } : undefined,
+                allowed_mentions: { replied_user: config.replyMention }
+            };
+
+            // get generated response
             generateResponse(prompt, history).then(response => {
                 const parsedResponse = responseParser(response.content);
                 const responseMessage = parsedResponse.message;
 
-                if (parsedResponse.ignored || !parsedResponse.message) return log(`${message.replace(/\n/g, " ")} > [IGNORED]`);
+                if (parsedResponse.ignored || !parsedResponse.message) return log(`Message: ${message.replace(/\n/g, " ")} > [IGNORED]`);
 
-                sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, {
-                    message_reference: config.reply ? { type: 0, message_id: data.id, channel_id: channelId, guild_id: guildId, fail_if_not_exists: false } : undefined,
-                    allowed_mentions: { replied_user: config.replyMention }
-                }).then(() => {
-                    log(`${message.replace(/\n/g, " ")} > ${responseMessage.replace(/\n/g, " ")}`);
+                // send generated response to discord
+                sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions).then(() => {
+                    log(`Message: ${message.replace(/\n/g, " ")} > ${responseMessage.replace(/\n/g, " ")}`);
                 }).catch(err => {
                     log(`Failed to send generated response to channel '${channelId}':`, err);
-                    sendMessage(channelId, "couldnt send response it was probably too long or some shit");
+                    sendMessage(channelId, "Couldn't send generated response, but managed to send this?", messageOptions);
                 });
             }).catch(err => {
                 log(`Failed to generate response for channel '${channelId}':`, err);
-                sendMessage(channelId, `HAD AN ERROR NOOOOOOO\n\`\`\`\n${err}\n\`\`\``);
+                // sendMessage(channelId, `Failed to generate response\n\`\`\`\n${err}\n\`\`\``);
             });
         } else {
-            // log(`Received unhandled event '${event}'`);
+            // log(`Received unhandled event '${event}'`); // doesnt matter
         }
     });
 
@@ -125,11 +134,11 @@ function main() {
     }
 
     function sendHeartbeat() {
-        sendPayload(1, null); // TODO: implement correctly: https://discord.com/developers/docs/events/gateway#heartbeat-interval
+        sendPayload(1, discordClient.lastSequenceNumber ?? null);
     }
 }
 
-function sendMessage(channelId, message, optional) {
+function sendMessage(channelId, message, options) {
     return new Promise((resolve, reject) => {
         fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/messages`, {
             method: "POST",
@@ -139,10 +148,9 @@ function sendMessage(channelId, message, optional) {
             },
             body: JSON.stringify({
                 content: message,
-                ...optional
+                ...options
             })
         }).then(i => i.json()).then(response => {
-            // TODO: proper checks
             resolve();
         }).catch(err => {
             reject(err);
@@ -154,14 +162,16 @@ function checkHistory(allHistory) {
     for (let historyIndex = allHistory.length - 1; historyIndex >= 0; historyIndex--) {
         const history = allHistory[historyIndex];
         // log(history);
-        if (Date.now() - history.lastUpdated >= config.historyDelete) {
+        const lastUpdated = Date.now() - history.lastUpdated;
+        const messagesLength = history.messages.length;
+        if (lastUpdated >= config.historyDelete) {
             // remove all history if unused for a while
             log(`Removing history for ${history.channelId}`);
             allHistory.splice(historyIndex, 1);
-        } else if (history.messages.length > config.historyLength) {
+        } else if (messagesLength > config.historyLength) {
             // keeps history within length
-            log(`Truncating history for ${history.channelId}`);
-            history.messages.splice(0, history.messages.length - config.historyLength);
+            log(`Truncating history for ${history.channelId} (${messagesLength} > ${config.historyLength})`);
+            history.messages.splice(0, messagesLength - config.historyLength);
         }
     }
 }
@@ -201,6 +211,7 @@ function generateResponse(prompt, history) {
             })
         }).then(i => i.json()).then(response => {
             // TODO: proper checks
+            debug(`Generated response used ${response.usage.prompt_tokens} tokens for prompt and ${response.usage.completion_tokens} tokens for completion (${response.usage.total_tokens} total)`);
             const message = response.choices[0].message;
             history.messages.push(message);
             history.lastUpdated = Date.now();
@@ -264,10 +275,10 @@ function connectGateway() {
 function formatString(string, object = { }) {
     // {{}} for objects
     // (()) for eval (scary)
-    // TODO: escape/dont format replaced stuff, for example if &{'hello %{word}'} is included, it would fuck up
+    // TODO: escape/dont format replaced stuff
     return string
-        .replace(/\\?{{(.*?)}}/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : eval(`${Object.entries(object).map(i => `const ${i[0]} = ${JSON.stringify(i[1])};`).join("\n")}\n${group}`))
-        .replace(/\\?\(\((.*?)\)\)/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : group.split(".").reduce((acc, key) => acc && acc[key], object));
+        .replace(/\\?\(\((.*?)\)\)/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : eval(`${Object.entries(object).map(i => `const ${i[0]} = ${JSON.stringify(i[1])};`).join("\n")}\n${group}`))
+        .replace(/\\?{{(.*?)}}/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : group.split(".").reduce((acc, key) => acc && acc[key], object));
 }
 
 function log(...msgs) {
@@ -275,4 +286,11 @@ function log(...msgs) {
     const message = [`[${timestamp}]`, ...msgs];
     console.log(...message);
     if (config.logLocation) fs.appendFileSync(config.logLocation, message.join(" ") + "\n");
+}
+
+function debug(...msgs) {
+    if (!config.debug) return;
+    const timestamp = new Date().toLocaleString();
+    const message = [`[${timestamp}]`, "[DEBUG]", ...msgs];
+    console.log(...message);
 }
