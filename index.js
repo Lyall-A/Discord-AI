@@ -61,7 +61,8 @@ function main() {
         if (event === "MESSAGE_CREATE") {
             const guildId = data.guild_id;
             const channelId = data.channel_id;
-            const message = data.content.replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.username);
+            const message = data.content
+                .replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.username); // replace mention with username
             
             if (!message) return; // no message (eg. attachment with no message content)
             if (data.author.id === discordClient.user.id) return; // message from self
@@ -88,6 +89,7 @@ function main() {
                 channelId: channelId,
                 systemPrompt: formatString(systemPromptText, promptObject),
                 messages: [],
+                created: Date.now(),
                 lastUpdated: Date.now()
             }) - 1];
             
@@ -111,17 +113,19 @@ function main() {
                 allowed_mentions: { replied_user: config.replyMention }
             };
             
-            addHistory({ role: "user", content: prompt }, history);
-            
+            // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err)); // start typing
             // get generated response
-            // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err));
             generateResponse(prompt, history).then(response => {
                 const parsedResponse = responseParser(response.content);
                 const responseMessage = parsedResponse.message;
 
                 if (config.ignoreHistory) addHistory(response, history); // add response to history even if it is an ignored response
 
-                if (parsedResponse.ignored || !parsedResponse.message) return log(`[${channelId}]`, "[Ignored]", `"${message.replace(/\n/g, " ")}"${parsedResponse.ignoredReason ? ` Reason: ${parsedResponse.ignoredReason}` : ""}`);
+                if (parsedResponse.ignored || !parsedResponse.message) {
+                    log(`[${channelId}]`, "[Ignored]", `"${message.replace(/\n/g, " ")}"${parsedResponse.ignoredReason ? `. Reason: ${parsedResponse.ignoredReason}` : ""}`);
+                    if (config.debug) sendMessage(channelId, `Ignored${parsedResponse.ignoredReason ? ` for '${parsedResponse.ignoredReason}'` : ""}`).catch(err => { });
+                    return;
+                }
 
                 if (!config.ignoreHistory) addHistory(response, history); // add response to history only if it isnt an ignored response
 
@@ -129,12 +133,12 @@ function main() {
                 sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions).then(() => {
                     log(`[${channelId}]`, "[Message]", `"${message.replace(/\n/g, " ")}" > "${responseMessage.replace(/\n/g, " ")}"`);
                 }).catch(err => {
-                    log(`Failed to send generated response to channel '${channelId}':`, err);
+                    log(`[${channelId}]`, "[Error]", "Failed to send generated response:", err);
                     sendMessage(channelId, "Couldn't send generated response, but managed to send this?", messageOptions).catch(err => { });
                 });
             }).catch(err => {
-                log(`Failed to generate response for channel '${channelId}':`, err);
-                // sendMessage(channelId, `Failed to generate response\n\`\`\`\n${err}\n\`\`\``);
+                log(`[${channelId}]`, "[Error]", "Failed to generate response", err);
+                sendMessage(channelId, `Failed to generate response\n\`\`\`\n${err}\n\`\`\``);
             });
         } else {
             // log(`Received unhandled event '${event}'`); // doesnt matter
@@ -157,6 +161,7 @@ function main() {
 
 function startTyping(channelId) {
     return new Promise((resolve, reject) => {
+        debug(`Triggering typing indicator in channel '${channelId}'`);
         fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/typing`, {
             method: "POST",
             headers: {
@@ -177,6 +182,7 @@ function startTyping(channelId) {
 
 function sendMessage(channelId, message, options) {
     return new Promise((resolve, reject) => {
+        debug(`Sending message in channel '${channelId}'`);
         fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/messages`, {
             method: "POST",
             headers: {
@@ -202,11 +208,18 @@ function sendMessage(channelId, message, options) {
 
 function generateResponse(prompt, history) {
     return new Promise((resolve, reject) => {
-        const messages = [...history.messages];
-        if (history.systemPrompt) messages.unshift({
-            role: "system",
-            content: history.systemPrompt
-        });
+        // debug(`Generating response for '${prompt}'`);
+        debug("Generating response");
+
+        if (prompt) addHistory({ role: "user", content: prompt }, history);
+
+        const messages = [
+            {
+                role: "system",
+                content: history.systemPrompt
+            },
+            ...history.messages
+        ];
 
         fetch(`${config.openAi.apiBaseUrl}/v1/chat/completions`, {
             method: "POST",
@@ -298,11 +311,11 @@ function checkHistory(allHistory) {
         const messagesLength = history.messages.length;
         if (lastUpdated >= config.historyDelete) {
             // remove all history if unused for a while
-            log(`Removing history for channel '${history.channelId}'`);
+            log(`[${history.channelId}]`, "[Info]", "Removing history");
             allHistory.splice(historyIndex, 1);
         } else if (messagesLength > config.historyLength) {
             // keeps history within length
-            log(`Truncating history for channel '${history.channelId}' (${messagesLength} > ${config.historyLength})`);
+            log(`[${history.channelId}]`, "[Info]", `Truncating history (${messagesLength} > ${config.historyLength})`);
             history.messages.splice(0, messagesLength - config.historyLength);
         }
     }
@@ -341,7 +354,6 @@ function log(...msgs) {
 
 function debug(...msgs) {
     if (!config.debug) return;
-    const timestamp = new Date().toLocaleString();
-    const message = [`[${timestamp}]`, "[DEBUG]", ...msgs];
-    console.log(...message);
+    const message = ["[DEBUG]", ...msgs];
+    log(...message);
 }
