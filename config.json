@@ -12,7 +12,7 @@
     "ignorePrefix": ["!"],
     "reply": false,
     "replyMention": false,
-    "ignoreHistory": false,
+    "ignoreHistory": true,
     "promptData": {
         "name": "Yoshino",
         "personality": "just be helpful",

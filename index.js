@@ -129,7 +129,7 @@ function main() {
                     log(`Message: ${message.replace(/\n/g, " ")} > ${responseMessage.replace(/\n/g, " ")}`);
                 }).catch(err => {
                     log(`Failed to send generated response to channel '${channelId}':`, err);
-                    sendMessage(channelId, "Couldn't send generated response, but managed to send this?", messageOptions);
+                    sendMessage(channelId, "Couldn't send generated response, but managed to send this?", messageOptions).catch(err => { });
                 });
             }).catch(err => {
                 log(`Failed to generate response for channel '${channelId}':`, err);
@@ -159,16 +159,15 @@ function startTyping(channelId) {
         fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/typing`, {
             method: "POST",
             headers: {
-                Authorization: `${config.discord.isUser ? "Bearer" : "Bot"} ${secrets.discordToken}`
+                Authorization: `${!config.discord.isUser ? "Bot " : ""}${secrets.discordToken}`
             }
         }).then(async response => {
-            // TODO: proper checks
+            const json = await response.json().catch(err => { });
             if (response.status === 204) {
                 resolve();
             } else {
-                reject();
+                reject(`Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`);
             }
-            resolve();
         }).catch(err => {
             reject(err);
         });
@@ -181,19 +180,18 @@ function sendMessage(channelId, message, options) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `${config.discord.isUser ? "Bearer" : "Bot"} ${secrets.discordToken}`
+                Authorization: `${!config.discord.isUser ? "Bot " : ""}${secrets.discordToken}`
             },
             body: JSON.stringify({
                 content: message,
                 ...options
             })
         }).then(async response => {
-            // TODO: proper checks
-            // const json = await response.json();
-            if (response.status === 200) {
+            const json = await response.json().catch(err => { });
+            if (response.status === 200 && json?.id) {
                 resolve();
             } else {
-                reject();
+                reject(`Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`);
             }
         }).catch(err => {
             reject(err);
@@ -221,15 +219,14 @@ function generateResponse(prompt, history) {
                 temperature: config.openAi.temperature
             })
         }).then(async response => {
-            // TODO: proper checks
-            const json = await response.json();
-            if (response.status === 200) {
+            const json = await response.json().catch(err => { });
+            if (response.status === 200 && json?.id) {
                 debug(`Generated response used ${json.usage.prompt_tokens} tokens for prompt and ${json.usage.completion_tokens} tokens for completion (${json.usage.total_tokens} total)`);
                 const message = json.choices[0].message;
                 history.lastUpdated = Date.now();
                 resolve(message);
             } else {
-                reject();
+                reject(`Got status code ${response.status}, error: ${json?.error}`);
             }
         }).catch(err => {
             reject(err);
