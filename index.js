@@ -20,10 +20,10 @@ main();
 
 function main() {
     const discordClient = {
-        user: { },
+        user: {},
         lastSequenceNumber: null
     };
-    const allHistory = [ ];
+    const allHistory = [];
     const rateLimits = [];
 
     const gateway = connectGateway();
@@ -58,91 +58,91 @@ function main() {
             log(`Online as ${discordClient.user.username}${discordClient.user.discriminator ? `#${discordClient.user.discriminator}` : ""} (${discordClient.user.id})`);
             log(`${discordClient.user.username} is awake, lock your doors`);
         } else
-        if (event === "MESSAGE_CREATE") {
-            const guildId = data.guild_id;
-            const channelId = data.channel_id;
-            const message = data.content
-                .replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.username); // replace mention with username
-            
-            if (!message) return; // no message (eg. attachment with no message content)
-            if (data.author.id === discordClient.user.id) return; // message from self
-            if (data.author.bot && !config.respondToBots) return; // bot
-            if (!config.channels?.includes(channelId) && !config.servers?.includes(guildId) && !config.users?.includes(data.author.id)) return; // not in list
-            if (config.ignorePrefix && config.ignorePrefix?.find(i => message.startsWith(i))) return; // message starts with ignore prefix
-            if (rateLimits.includes(channelId)) return; // channel is rate limited
-            
-            const promptObject = {
-                // stuff to pass to the prompt, like usernames etc
-                message,
-                referencedMessage: data.referenced_message,
-                me: discordClient,
-                author: data.author,
-                member: data.member,
-                guildId: guildId,
-                channelId: channelId,
-                timestamp: data.timestamp,
-                ...config.promptData
-            };
-            
-            const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
-            const history = historyIndex >= 0 ? allHistory[historyIndex] : allHistory[allHistory.push({
-                channelId: channelId,
-                systemPrompt: formatString(systemPromptText, promptObject),
-                messages: [],
-                created: Date.now(),
-                lastUpdated: Date.now()
-            }) - 1];
-            
-            const prompt = formatString(promptText, promptObject);
-            
-            // console.log("System prompt:", history.systemPrompt);
-            // console.log("Prompt:", prompt);
-            // console.log("History:", history.messages);
-            
-            // add rate limit
-            if (config.rateLimit) {
-                rateLimits.push(channelId);
-                setTimeout(() => {
-                    const index = rateLimits.findIndex(i => i === channelId);
-                    if (index >= 0) rateLimits.splice(index, 1);
-                }, config.rateLimit);
-            }
-            
-            const messageOptions = {
-                message_reference: config.reply ? { type: 0, message_id: data.id, channel_id: channelId, guild_id: guildId, fail_if_not_exists: false } : undefined,
-                allowed_mentions: { replied_user: config.replyMention }
-            };
-            
-            // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err)); // start typing
-            // get generated response
-            generateResponse(prompt, history).then(response => {
-                const parsedResponse = responseParser(response.content);
-                const responseMessage = parsedResponse.message;
+            if (event === "MESSAGE_CREATE") {
+                const guildId = data.guild_id;
+                const channelId = data.channel_id;
+                const message = data.content
+                    .replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.username); // replace mention with username
 
-                if (config.ignoreHistory) addHistory(response, history); // add response to history even if it is an ignored response
+                if (!message) return; // no message (eg. attachment with no message content)
+                if (data.author.id === discordClient.user.id) return; // message from self
+                if (data.author.bot && !config.respondToBots) return; // bot
+                if (!config.channels?.includes(channelId) && !config.servers?.includes(guildId) && !config.users?.includes(data.author.id) && (!config.respondToMentions || !data.mentions?.some(i => i.id === discordClient.user.id))) return; // isnt in lists, or hasent been mentioned with respondToMentions
+                if (config.ignorePrefix && config.ignorePrefix?.some(i => message.startsWith(i))) return; // message starts with ignore prefix
+                if (rateLimits.includes(channelId)) return; // channel is rate limited
 
-                if (parsedResponse.ignored || !parsedResponse.message) {
-                    log(`[${channelId}]`, "[Ignored]", `"${message.replace(/\n/g, " ")}"${parsedResponse.ignoredReason ? `. Reason: ${parsedResponse.ignoredReason}` : ""}`);
-                    if (config.debug) sendMessage(channelId, `Ignored${parsedResponse.ignoredReason ? ` for '${parsedResponse.ignoredReason}'` : ""}`).catch(err => { });
-                    return;
+                const promptObject = {
+                    // stuff to pass to the prompt, like usernames etc
+                    message,
+                    referencedMessage: data.referenced_message,
+                    me: discordClient,
+                    author: data.author,
+                    member: data.member,
+                    guildId: guildId,
+                    channelId: channelId,
+                    timestamp: data.timestamp,
+                    ...config.promptData
+                };
+
+                const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
+                const history = historyIndex >= 0 ? allHistory[historyIndex] : allHistory[allHistory.push({
+                    channelId: channelId,
+                    systemPrompt: formatString(systemPromptText, promptObject),
+                    messages: [],
+                    created: Date.now(),
+                    lastUpdated: Date.now()
+                }) - 1];
+
+                const prompt = formatString(promptText, promptObject);
+
+                // console.log("System prompt:", history.systemPrompt);
+                // console.log("Prompt:", prompt);
+                // console.log("History:", history.messages);
+
+                // add rate limit
+                if (config.rateLimit) {
+                    rateLimits.push(channelId);
+                    setTimeout(() => {
+                        const index = rateLimits.findIndex(i => i === channelId);
+                        if (index >= 0) rateLimits.splice(index, 1);
+                    }, config.rateLimit);
                 }
 
-                if (!config.ignoreHistory) addHistory(response, history); // add response to history only if it isnt an ignored response
+                const messageOptions = {
+                    message_reference: config.reply ? { type: 0, message_id: data.id, channel_id: channelId, guild_id: guildId, fail_if_not_exists: false } : undefined,
+                    allowed_mentions: { replied_user: config.replyMention }
+                };
 
-                // send generated response to discord
-                sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions).then(() => {
-                    log(`[${channelId}]`, "[Message]", `"${message.replace(/\n/g, " ")}" > "${responseMessage.replace(/\n/g, " ")}"`);
+                // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err)); // start typing
+                // get generated response
+                generateResponse(prompt, history).then(response => {
+                    const parsedResponse = responseParser(response.content);
+                    const responseMessage = parsedResponse.message;
+
+                    if (config.ignoreHistory) addHistory(response, history); // add response to history even if it is an ignored response
+
+                    if (parsedResponse.ignored || !parsedResponse.message) {
+                        log(`[${channelId}]`, "[Ignored]", `"${message.replace(/\n/g, " ")}"${parsedResponse.ignoredReason ? `. Reason: ${parsedResponse.ignoredReason}` : ""}`);
+                        if (config.debug) sendMessage(channelId, `Ignored${parsedResponse.ignoredReason ? ` for '${parsedResponse.ignoredReason}'` : ""}`).catch(err => { });
+                        return;
+                    }
+
+                    if (!config.ignoreHistory) addHistory(response, history); // add response to history only if it isnt an ignored response
+
+                    // send generated response to discord
+                    sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions).then(() => {
+                        log(`[${channelId}]`, "[Message]", `"${message.replace(/\n/g, " ")}" > "${responseMessage.replace(/\n/g, " ")}"`);
+                    }).catch(err => {
+                        log(`[${channelId}]`, "[Error]", "Failed to send generated response:", err);
+                        sendMessage(channelId, "Couldn't send generated response, but managed to send this?", messageOptions).catch(err => { });
+                    });
                 }).catch(err => {
-                    log(`[${channelId}]`, "[Error]", "Failed to send generated response:", err);
-                    sendMessage(channelId, "Couldn't send generated response, but managed to send this?", messageOptions).catch(err => { });
+                    log(`[${channelId}]`, "[Error]", "Failed to generate response", err);
+                    sendMessage(channelId, `Failed to generate response\n\`\`\`\n${err}\n\`\`\``);
                 });
-            }).catch(err => {
-                log(`[${channelId}]`, "[Error]", "Failed to generate response", err);
-                sendMessage(channelId, `Failed to generate response\n\`\`\`\n${err}\n\`\`\``);
-            });
-        } else {
-            // log(`Received unhandled event '${event}'`); // doesnt matter
-        }
+            } else {
+                // log(`Received unhandled event '${event}'`); // doesnt matter
+            }
     });
 
     gateway.on("close", () => {
@@ -249,10 +249,10 @@ function generateResponse(prompt, history) {
 }
 
 function connectGateway() {
-    const gateway = { };
+    const gateway = {};
     const listeners = [];
     const intervals = [];
-    
+
     gateway.gatewayUrl = `${config.discord.gatewayBaseUrl}/?v=${config.discord.gatewayVersion}&encoding=json`;
     gateway.webSocket = new WebSocket(gateway.gatewayUrl);
     gateway.listeners = listeners;
@@ -271,7 +271,7 @@ function connectGateway() {
     gateway.sendText = (text) => gateway.webSocket.send(text);
     gateway.close = (code) => gateway.webSocket.close(code);
     gateway.whileConnected = (callback, interval) => intervals.push(setInterval(callback, interval));
-    
+
     const { webSocket } = gateway;
 
     webSocket.addEventListener("open", () => {
@@ -287,7 +287,7 @@ function connectGateway() {
             gateway.call("op", json);
             gateway.call(`op-${json.op}`, json);
             if (json.op === 0) gateway.call("event", json);
-        } catch (err ) {};
+        } catch (err) { };
     });
 
     webSocket.addEventListener("close", () => {
@@ -321,7 +321,7 @@ function checkHistory(allHistory) {
     }
 }
 
-function formatString(string, object = { }) {
+function formatString(string, object = {}) {
     // {{}} for objects
     // (()) for eval (scary)
     // TODO: fix regex: parenthesis in eval would break
