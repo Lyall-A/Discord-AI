@@ -1,1 +1,3 @@
-((member.nick || author.global_name || author.username)) aka ((author.global_name || author.username)): {{message}}
+User: ((member.nick || author.global_name || author.username)) aka ((author.global_name || author.username))
+Reply to: "{{referencedMessage.content}}"
+Message: {{message}}

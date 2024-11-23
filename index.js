@@ -73,6 +73,7 @@ function main() {
             const promptObject = {
                 // stuff to pass to the prompt, like usernames etc
                 message,
+                referencedMessage: data.referenced_message,
                 me: discordClient,
                 author: data.author,
                 member: data.member,
