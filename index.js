@@ -4,8 +4,13 @@ const fs = require("fs");
 const secrets = require("./secrets.json");
 const config = require("./config.json");
 
-const systemPromptText = fs.readFileSync(config.systemPromptLocation, "utf-8");
-const promptText = fs.readFileSync(config.promptLocation, "utf-8");
+// prompts
+let systemPromptText = fs.readFileSync(config.systemPromptLocation, "utf-8");
+let promptText = fs.readFileSync(config.promptLocation, "utf-8");
+
+// monitor prompts for changes
+fs.watchFile(config.systemPromptLocation, () => systemPromptText = fs.readFileSync(config.systemPromptLocation, "utf-8"));
+fs.watchFile(config.promptLocation, () => promptText = fs.readFileSync(config.promptLocation, "utf-8"));
 
 const responseParser = require("./responseParser");
 
