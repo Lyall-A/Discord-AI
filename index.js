@@ -72,7 +72,6 @@ function main() {
                 timestamp: data.timestamp,
                 ...config.promptData
             };
-
             
             const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
             const history = historyIndex >= 0 ? allHistory[historyIndex] : allHistory[allHistory.push({
@@ -84,8 +83,8 @@ function main() {
             
             const prompt = formatString(promptText, promptObject);
 
-            // log("System prompt:", history.systemPrompt);
-            // log("Prompt:", prompt);
+            // console.log("System prompt:", history.systemPrompt);
+            // console.log("Prompt:", prompt);
 
             // add rate limit
             if (config.rateLimit) {
@@ -183,14 +182,6 @@ function generateResponse(prompt, history) {
             content: prompt
         });
         history.lastUpdated = Date.now();
-        
-        // log([
-        //     {
-        //         role: "system",
-        //         content: history.systemPrompt,
-        //     },
-        //     ...history.messages
-        // ]);
 
         fetch(`${config.openAi.apiBaseUrl}/v1/chat/completions`, {
             method: "POST",
@@ -275,10 +266,25 @@ function connectGateway() {
 function formatString(string, object = { }) {
     // {{}} for objects
     // (()) for eval (scary)
-    // TODO: escape/dont format replaced stuff
-    return string
-        .replace(/\\?\(\((.*?)\)\)/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : eval(`${Object.entries(object).map(i => `const ${i[0]} = ${JSON.stringify(i[1])};`).join("\n")}\n${group}`))
-        .replace(/\\?{{(.*?)}}/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : group.split(".").reduce((acc, key) => acc && acc[key], object));
+    // TODO: fix regex: parenthesis in eval would break
+
+    return string.replace(/\\?(\(\((.+?)\)\)|{{(.+?)}})/g, (match, fullMatch, evalGroup, objectGroup) => {
+        if (match.startsWith("\\")) return match.slice(1);
+
+        if (evalGroup) {
+            return eval(`${Object.entries(object).map(([key, value]) => `const ${key} = ${JSON.stringify(value)};`).join("\n")}\n${evalGroup}`);
+        }
+
+        if (objectGroup) {
+            return objectGroup.split(".").reduce((acc, key) => acc && acc[key], object);
+        }
+
+        return match;
+    });
+
+    // return string
+    //     .replace(/\\?\(\((.+)\)\)/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : eval(`${Object.entries(object).map(i => `const ${i[0]} = ${JSON.stringify(i[1])};`).join("\n")}\n${group}`))
+    //     .replace(/\\?{{(.+)}}/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : group.split(".").reduce((acc, key) => acc && acc[key], object));
 }
 
 function log(...msgs) {

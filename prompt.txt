@@ -1,1 +1,1 @@
-((author.global_name || author.username)) aka ((member.nick || author.username)): {{message}}
+((member.nick || author.global_name || author.username)) aka ((author.global_name || author.username)): {{message}}
