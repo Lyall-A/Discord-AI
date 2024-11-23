@@ -1,3 +1,3 @@
-User: ((member.nick || author.global_name || author.username)) aka ((author.global_name || author.username))
-Reply to: "{{referencedMessage.content}}"
+User aliases: {{member.nick}}, {{author.global_name}}, {{author.username}}
+Reply to: "{{referencedMessage.content}}" from ((referencedMessage ? referencedMessage.author.global_name || referencedMessage.author.username : ""))
 Message: {{message}}

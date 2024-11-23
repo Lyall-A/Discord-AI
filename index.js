@@ -69,7 +69,7 @@ function main() {
             if (!config.channels?.includes(channelId) && !config.servers?.includes(guildId) && !config.users?.includes(data.author.id)) return; // not in list
             if (config.ignorePrefix && config.ignorePrefix?.find(i => message.startsWith(i))) return; // message starts with ignore prefix
             if (rateLimits.includes(channelId)) return; // channel is rate limited
-
+            
             const promptObject = {
                 // stuff to pass to the prompt, like usernames etc
                 message,
@@ -92,10 +92,10 @@ function main() {
             }) - 1];
             
             const prompt = formatString(promptText, promptObject);
-
+            
             // console.log("System prompt:",promptText history.systemPrompt);
             // console.log("Prompt:", prompt);
-
+            
             // add rate limit
             if (config.rateLimit) {
                 rateLimits.push(channelId);
@@ -104,14 +104,14 @@ function main() {
                     if (index >= 0) rateLimits.splice(index, 1);
                 }, config.rateLimit);
             }
-
+            
             const messageOptions = {
                 message_reference: config.reply ? { type: 0, message_id: data.id, channel_id: channelId, guild_id: guildId, fail_if_not_exists: false } : undefined,
                 allowed_mentions: { replied_user: config.replyMention }
             };
-
+            
             addHistory({ role: "user", content: prompt }, history);
-
+            
             // get generated response
             // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err));
             generateResponse(prompt, history).then(response => {
