@@ -93,8 +93,9 @@ function main() {
             
             const prompt = formatString(promptText, promptObject);
             
-            // console.log("System prompt:",promptText history.systemPrompt);
+            // console.log("System prompt:", history.systemPrompt);
             // console.log("Prompt:", prompt);
+            // console.log("History:", history.messages);
             
             // add rate limit
             if (config.rateLimit) {
@@ -120,13 +121,13 @@ function main() {
 
                 if (config.ignoreHistory) addHistory(response, history); // add response to history even if it is an ignored response
 
-                if (parsedResponse.ignored || !parsedResponse.message) return log("Ignored:", `${message.replace(/\n/g, " ")}${parsedResponse.ignoredReason ? ` > ${parsedResponse.ignoredReason}` : ""}`);
+                if (parsedResponse.ignored || !parsedResponse.message) return log(`[${channelId}]`, "[Ignored]", `"${message.replace(/\n/g, " ")}"${parsedResponse.ignoredReason ? ` Reason: ${parsedResponse.ignoredReason}` : ""}`);
 
                 if (!config.ignoreHistory) addHistory(response, history); // add response to history only if it isnt an ignored response
 
                 // send generated response to discord
                 sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions).then(() => {
-                    log("Message:", `${message.replace(/\n/g, " ")} > ${responseMessage.replace(/\n/g, " ")}`);
+                    log(`[${channelId}]`, "[Message]", `"${message.replace(/\n/g, " ")}" > "${responseMessage.replace(/\n/g, " ")}"`);
                 }).catch(err => {
                     log(`Failed to send generated response to channel '${channelId}':`, err);
                     sendMessage(channelId, "Couldn't send generated response, but managed to send this?", messageOptions).catch(err => { });
