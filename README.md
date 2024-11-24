@@ -1,6 +1,16 @@
 # omg virtual human
 
-system prompt is made for [Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2-GGUF](https://huggingface.co/Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2-GGUF), it may need tweaked for different models (gpt is fucking awful for this)
+## system prompt is made for [Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2-GGUF](https://huggingface.co/Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2-GGUF), it may need tweaked for different models (gpt is fucking awful for this)
+
+rahhh so like here it simulates how long it takes to read a message (reading stage), think about a response (thinking stage) and then typing it out (responding stage)
+
+it will show a typing indicator on the responding stage
+
+if multiple messages are sent while its already responding, it will cancel out and will respond to the first message as a reply instead of a regular message
+
+(all of that is default config which can be changed)
+
+https://github.com/user-attachments/assets/a90fde37-3935-4823-960e-f214a3eaa4c9
 
 ![image](https://github.com/user-attachments/assets/68a92220-32d5-48b2-a88f-a992bd5b5ea6)
 
