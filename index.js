@@ -128,10 +128,11 @@ function main() {
 
                     if (config.ignoreHistory) addHistory(response, history); // add response to history even if it is an ignored response
 
-
                     if (parsedResponse.ignored || !parsedResponse.message) {
                         log(`[${channelId}]`, "[Ignored]", `"${message.replace(/\n/g, " ")}"${parsedResponse.ignoredReason ? `. Reason: ${parsedResponse.ignoredReason}` : ""}`);
                         if (config.debug) sendMessage(channelId, `Ignored${parsedResponse.ignoredReason ? ` for '${parsedResponse.ignoredReason}'` : ""}`).catch(err => { });
+                        history.multipleMessages = false;
+                        history.currentlyResponding = false;
                         return;
                     }
 
