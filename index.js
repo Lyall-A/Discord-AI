@@ -143,7 +143,7 @@ function main() {
                     const respondDelay = (config.respondDelayPerCharacter * responseMessage.length);
                     const delay = readDelay + thinkDelay + respondDelay;
 
-                    const trueDelay = Math.max(Math.min(delay - (Date.now() - beforeResponseDate), 1 * 60 * 1000), 0);
+                    const trueDelay = Math.max(Math.min(delay - (Date.now() - beforeResponseDate), config.delayMax), 0);
 
                     debug(`Delaying response by ${trueDelay}ms (read: ${readDelay}ms, think: ${thinkDelay}ms, respond: ${respondDelay})`);
 
