@@ -61,6 +61,7 @@ function main() {
             if (event === "MESSAGE_CREATE") {
                 const guildId = data.guild_id;
                 const channelId = data.channel_id;
+                const timestamp = new Date(data.timestamp);
                 const message = data.content
                     .replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.username); // replace mention with username
 
@@ -80,7 +81,7 @@ function main() {
                     member: data.member,
                     guildId: guildId,
                     channelId: channelId,
-                    timestamp: data.timestamp,
+                    timestamp,
                     ...config.promptData
                 };
 
@@ -90,8 +91,17 @@ function main() {
                     systemPrompt: formatString(systemPromptText, promptObject),
                     messages: [],
                     created: Date.now(),
-                    lastUpdated: Date.now()
+                    lastUpdated: Date.now(),
+                    multipleMessages: false,
+                    currentlyResponding: false,
+                    typing: false
                 }) - 1];
+
+                if (history.currentlyResponding && config.cancelMultipleMessages) {
+                    history.multipleMessages = true;
+                    return;
+                }; // currently responding
+                history.currentlyResponding = true;
 
                 const prompt = formatString(promptText, promptObject);
 
@@ -108,18 +118,16 @@ function main() {
                     }, config.rateLimit);
                 }
 
-                const messageOptions = {
-                    message_reference: config.reply ? { type: 0, message_id: data.id, channel_id: channelId, guild_id: guildId, fail_if_not_exists: false } : undefined,
-                    allowed_mentions: { replied_user: config.replyMention }
-                };
+                const beforeResponseDate = Date.now();
 
                 // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err)); // start typing
                 // get generated response
-                generateResponse(prompt, history).then(response => {
+                generateResponse(prompt, history).then(async response => {
                     const parsedResponse = responseParser(response.content);
                     const responseMessage = parsedResponse.message;
 
                     if (config.ignoreHistory) addHistory(response, history); // add response to history even if it is an ignored response
+
 
                     if (parsedResponse.ignored || !parsedResponse.message) {
                         log(`[${channelId}]`, "[Ignored]", `"${message.replace(/\n/g, " ")}"${parsedResponse.ignoredReason ? `. Reason: ${parsedResponse.ignoredReason}` : ""}`);
@@ -129,13 +137,38 @@ function main() {
 
                     if (!config.ignoreHistory) addHistory(response, history); // add response to history only if it isnt an ignored response
 
-                    // send generated response to discord
-                    sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions).then(() => {
-                        log(`[${channelId}]`, "[Message]", `"${message.replace(/\n/g, " ")}" > "${responseMessage.replace(/\n/g, " ")}"`);
-                    }).catch(err => {
-                        log(`[${channelId}]`, "[Error]", "Failed to send generated response:", err);
-                        sendMessage(channelId, "Couldn't send generated response, but managed to send this?", messageOptions).catch(err => { });
-                    });
+                    // create delay, readDelayPerCharacter will be multiplied by message length, thinkDelayMin and thinkDelayMax is a random delay between and respondDelayPerCharacter will be multiplied by response length
+                    const readDelay = (config.readDelayPerCharacter * message.length);
+                    const thinkDelay = random(config.thinkDelayMin, config.thinkDelayMax);
+                    const respondDelay = (config.respondDelayPerCharacter * responseMessage.length);
+                    const delay = readDelay + thinkDelay + respondDelay;
+
+                    const trueDelay = Math.max(Math.min(delay - (Date.now() - beforeResponseDate), 1 * 60 * 1000), 0);
+
+                    debug(`Delaying response by ${trueDelay}ms (read: ${readDelay}ms, think: ${thinkDelay}ms, respond: ${respondDelay})`);
+
+                    if (trueDelay - respondDelay > 100 && config.typing) setTimeout(() => {
+                        startTypingLoop(channelId, history);
+                    }, trueDelay - respondDelay);
+
+                    setTimeout(() => {
+                        const messageOptions = {
+                            message_reference: (config.reply || (config.replyIfMultipleMessages && history.multipleMessages)) ? { type: 0, message_id: data.id, channel_id: channelId, guild_id: guildId, fail_if_not_exists: false } : undefined,
+                            allowed_mentions: { replied_user: config.replyMention }
+                        };
+                        
+                        history.multipleMessages = false;
+                        history.currentlyResponding = false;
+                        history.typing = false;
+
+                        // send generated response to discord
+                        sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions).then(() => {
+                            log(`[${channelId}]`, "[Message]", `"${message.replace(/\n/g, " ")}" > "${responseMessage.replace(/\n/g, " ")}"`);
+                        }).catch(err => {
+                            log(`[${channelId}]`, "[Error]", "Failed to send generated response:", err);
+                            sendMessage(channelId, "Couldn't send generated response, but managed to send this?", messageOptions).catch(err => { });
+                        });
+                    }, trueDelay);
                 }).catch(err => {
                     log(`[${channelId}]`, "[Error]", "Failed to generate response", err);
                     sendMessage(channelId, `Failed to generate response\n\`\`\`\n${err}\n\`\`\``);
@@ -157,6 +190,18 @@ function main() {
     function sendHeartbeat() {
         sendPayload(1, discordClient.lastSequenceNumber ?? null);
     }
+}
+
+function startTypingLoop(channelId, history) {
+    return new Promise((resolve, reject) => {
+        history.typing = true;
+        startTyping(channelId).then(i => {
+            setTimeout(() => {
+                if (history.typing) return startTypingLoop(channelId, history);
+            }, 9 * 1000);
+            resolve();
+        }).catch(err => reject(err));
+    });
 }
 
 function startTyping(channelId) {
@@ -339,10 +384,10 @@ function formatString(string, object = {}) {
 
         return match;
     });
+}
 
-    // return string
-    //     .replace(/\\?\(\((.+)\)\)/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : eval(`${Object.entries(object).map(i => `const ${i[0]} = ${JSON.stringify(i[1])};`).join("\n")}\n${group}`))
-    //     .replace(/\\?{{(.+)}}/g, (match, group) => match.startsWith("\\") ? match.replace(/^\\/, "") : group.split(".").reduce((acc, key) => acc && acc[key], object));
+function random(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 function log(...msgs) {
