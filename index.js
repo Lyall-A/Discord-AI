@@ -24,94 +24,12 @@ const cache = {
 const allHistory = [];
 const rateLimits = [];
 
-// update history loop
-setInterval(() => checkHistory(allHistory), config.historyCheck);
+setInterval(() => checkHistory(allHistory), config.historyCheck); // update history loop
 
-// cache reset loop
-if (config.cache && config.cacheResetInterval) setInterval(() => {
-    cache.channels = [];
-}, config.cacheResetInterval);
+if (config.cache && config.cacheResetInterval) setInterval(clearCache, config.cacheResetInterval); // cache reset loop
 
-// start conversation loop
-// if (config.startConversations) setTimeout(async () => {
-if (config.startConversations) setInterval(async () => {
-    for (const channelId of config.startConversationsChannels) {
-        const randomNum = random(1, 100);
-        if (randomNum > config.startConversationsChance) {
-            debug(`Not starting conversation for channel '${channelId}', ${randomNum} over ${config.startConversationsChance}`);
-            continue;
-        };
-        debug(`Trying to start conversation for channel '${channelId}'`);
-
-        const channel = await getChannel(channelId).catch(err => {
-            log(`Failed to get channel '${channelId}' while starting conversation`);
-        });
-        if (!channel) continue;
-
-        const isServer = channel.type === 0;
-        const isDm = channel.type === 1;
-        const isGroupChat = channel.type === 3;
-        const type = isServer ? "Server" : isDm ? "DM" : isGroupChat ? "Group Chat" : null;
-
-        const promptObject = {
-            channel,
-            channelId,
-            type,
-            isServer,
-            isDm,
-            isGroupChat,
-            ...config.promptData
-        };
-
-        const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
-        const history = historyIndex >= 0 ? allHistory[historyIndex] : allHistory[allHistory.push({
-            channelId,
-            channel,
-            systemPrompt: formatString(systemPromptText, promptObject),
-            messages: [],
-            created: Date.now(),
-            lastUpdated: Date.now(),
-            startedConversation: false,
-            multipleMessages: false,
-            currentlyResponding: false,
-            typing: false
-        }) - 1];
-
-        if (history.startedConversation || Date.now() - history.lastUpdated < config.startConversationsMinTime) continue; // already started conversation previously or conversation already happening
-
-        history.startedConversation = true;
-        history.currentlyResponding = true;
-
-        const prompt = formatString(conversationPromptText, promptObject);
-
-        await generateResponse(prompt, history).then(response => {
-            const parsedResponse = responseParser(response.content);
-            const responseMessage = parsedResponse.message;
-
-            if (parsedResponse.ignored || !parsedResponse.message) return;
-
-            addHistory(response, history);
-
-            const respondDelay = (config.respondDelayPerCharacter * responseMessage.length);
-
-            if (respondDelay > 100 && config.typing) startTypingLoop(channelId, history).catch(err => { });
-
-            setTimeout(() => {
-                history.multipleMessages = false;
-                history.currentlyResponding = false;
-                history.typing = false;
-
-                // send generated response to discord
-                sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage).then(() => {
-                    log(`[${channelId}]`, "[Starting Conversation]", `"${responseMessage.replace(/\n/g, " ")}"`);
-                }).catch(err => {
-                    log(`[${channelId}]`, "[Error]", "Failed to send generated response while starting conversation:", err);
-                });
-            }, respondDelay);
-        });
-    }
-}, config.startConversationsInterval);
-// }, 0);
+if (config.startConversations) setInterval(startConversations, config.startConversationsInterval); // start conversation loop
+// if (config.startConversations) startConversations();
 
 main();
 
@@ -268,7 +186,7 @@ function main() {
                             message_reference: (config.reply || (config.replyIfMultipleMessages && history.multipleMessages)) ? { type: 0, message_id: data.id, channel_id: channelId, guild_id: guildId, fail_if_not_exists: false } : undefined,
                             allowed_mentions: { replied_user: config.replyMention }
                         };
-                        
+
                         history.multipleMessages = false;
                         history.currentlyResponding = false;
                         history.typing = false;
@@ -301,6 +219,95 @@ function main() {
 
     function sendHeartbeat() {
         sendPayload(1, discordClient.lastSequenceNumber ?? null);
+    }
+}
+
+async function startConversations() {
+    if (!config.startConversations) return;
+
+    for (const channelId of config.startConversationsChannels) {
+        const randomNum = random(1, 100);
+        if (randomNum > config.startConversationsChance) {
+            debug(`Not starting conversation for channel '${channelId}', ${randomNum} over ${config.startConversationsChance}`);
+            continue;
+        };
+        debug(`Trying to start conversation for channel '${channelId}'`);
+
+        const channel = await getChannel(channelId).catch(err => {
+            log(`Failed to get channel '${channelId}' while starting conversation`);
+        });
+        if (!channel) continue;
+
+        const isServer = channel.type === 0;
+        const isDm = channel.type === 1;
+        const isGroupChat = channel.type === 3;
+        const type = isServer ? "Server" : isDm ? "DM" : isGroupChat ? "Group Chat" : null;
+
+        const promptObject = {
+            channel,
+            channelId,
+            type,
+            isServer,
+            isDm,
+            isGroupChat,
+            ...config.promptData
+        };
+
+        const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
+        const history = historyIndex >= 0 ? allHistory[historyIndex] : allHistory[allHistory.push({
+            channelId,
+            channel,
+            systemPrompt: formatString(systemPromptText, promptObject),
+            messages: [],
+            created: Date.now(),
+            lastUpdated: Date.now(),
+            startedConversation: false,
+            multipleMessages: false,
+            currentlyResponding: false,
+            typing: false
+        }) - 1];
+
+        if (history.startedConversation) {
+            // already started conversation previously
+            debug(`Already tried starting conversation in channel '${channelId}' with no response, not trying again`);
+            continue;
+        };
+        if (historyIndex >= 0 && Date.now() - history.lastUpdated < config.startConversationsMinTime) {
+            // conversation possibly already going on
+            debug(`Conversation possibly already going on in channel '${channelId}', not trying again`);
+            continue;
+        }
+
+        history.startedConversation = true;
+        history.currentlyResponding = true;
+
+        const prompt = formatString(conversationPromptText, promptObject);
+
+        await generateResponse(prompt, history).then(response => {
+            const parsedResponse = responseParser(response.content);
+            const responseMessage = parsedResponse.message;
+
+            if (parsedResponse.ignored || !parsedResponse.message) return debug("Ignored while trying to start conversation");
+
+            addHistory(response, history);
+
+            const respondDelay = (config.respondDelayPerCharacter * responseMessage.length);
+
+            if (respondDelay > 100 && config.typing) startTypingLoop(channelId, history).catch(err => { });
+
+            setTimeout(() => {
+                history.multipleMessages = false;
+                history.currentlyResponding = false;
+                history.typing = false;
+
+                // send generated response to discord
+                sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage).then(() => {
+                    log(`[${channelId}]`, "[Starting Conversation]", `"${responseMessage.replace(/\n/g, " ")}"`);
+                }).catch(err => {
+                    log(`[${channelId}]`, "[Error]", "Failed to send generated response while starting conversation:", err);
+                });
+            }, respondDelay);
+        });
     }
 }
 
@@ -520,6 +527,10 @@ function formatString(string, object = {}) {
 
         return match;
     });
+}
+
+function clearCache() {
+    cache.channels = [];
 }
 
 function random(min, max) {
