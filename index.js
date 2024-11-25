@@ -77,8 +77,7 @@ if (config.startConversations) setInterval(async () => {
             typing: false
         }) - 1];
 
-        if (history.startedConversation) continue; // already started conversation previously
-        if (!history.startedConversation && Date.now() - history.lastUpdated < config.startConversationsMinTime) continue; // dont start convo if there is already one possibly happening
+        if (history.startedConversation || Date.now() - history.lastUpdated < config.startConversationsMinTime) continue; // already started conversation previously or conversation already happening
 
         history.startedConversation = true;
         history.currentlyResponding = true;
