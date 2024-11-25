@@ -10,6 +10,8 @@ if multiple messages are sent while its already responding, it will cancel out a
 
 it will ignore messages if u are talking to someone else
 
+it even starts conversations
+
 u can also dm it
 
 (all of that is default config which can be changed)

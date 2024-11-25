@@ -7,14 +7,103 @@ const config = require("./config.json");
 // prompts
 let systemPromptText = fs.readFileSync(config.systemPromptLocation, "utf-8");
 let promptText = fs.readFileSync(config.promptLocation, "utf-8");
+let conversationPromptText = fs.readFileSync(config.conversationPromptLocation, "utf-8");
 
 // monitor prompts for changes
 fs.watchFile(config.systemPromptLocation, () => systemPromptText = fs.readFileSync(config.systemPromptLocation, "utf-8"));
 fs.watchFile(config.promptLocation, () => promptText = fs.readFileSync(config.promptLocation, "utf-8"));
+fs.watchFile(config.conversationPromptLocation, () => conversationPromptText = fs.readFileSync(config.conversationPromptLocation, "utf-8"));
 
 const responseParser = require("./responseParser");
 
 log(`${config.promptData.name ? `${config.promptData.name} is` : "I'm"} waking up... be scared`);
+
+const cache = {
+    channels: [],
+};
+const allHistory = [];
+const rateLimits = [];
+
+// update history loop
+setInterval(() => checkHistory(allHistory), config.historyCheck);
+
+// cache reset loop
+if (config.cache && config.cacheResetInterval) setInterval(() => {
+    cache.channels = [];
+}, config.cacheResetInterval);
+
+// start conversation loop
+// if (config.startConversations) setTimeout(async () => {
+if (config.startConversations) setInterval(async () => {
+    for (const channelId of config.startConversationsChannels) {
+        if (random(1, 100) > config.startConversationsChance) continue;
+
+        const channel = await getChannel(channelId).catch(err => { console.log(err) });
+        if (!channel) continue;
+
+        const isServer = channel.type === 0;
+        const isDm = channel.type === 1;
+        const isGroupChat = channel.type === 3;
+        const type = isServer ? "Server" : isDm ? "DM" : isGroupChat ? "Group Chat" : null;
+
+        const promptObject = {
+            channel,
+            channelId,
+            type,
+            isServer,
+            isDm,
+            isGroupChat,
+            ...config.promptData
+        };
+
+        const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
+        const history = historyIndex >= 0 ? allHistory[historyIndex] : allHistory[allHistory.push({
+            channelId,
+            channel,
+            systemPrompt: formatString(systemPromptText, promptObject),
+            messages: [],
+            created: Date.now(),
+            lastUpdated: Date.now(),
+            startedConversation: true,
+            multipleMessages: false,
+            currentlyResponding: false,
+            typing: false
+        }) - 1];
+
+        if (!history.startedConversation && Date.now() - history.lastUpdated < config.startConversationsMinTime) continue; // dont start convo if there is already one possibly happening
+
+        history.currentlyResponding = true;
+
+        const prompt = formatString(conversationPromptText, promptObject);
+
+        await generateResponse(prompt, history).then(response => {
+            const parsedResponse = responseParser(response.content);
+            const responseMessage = parsedResponse.message;
+
+            if (parsedResponse.ignored || !parsedResponse.message) return;
+
+            addHistory(response, history);
+
+            const respondDelay = (config.respondDelayPerCharacter * responseMessage.length);
+
+            if (respondDelay > 100 && config.typing) startTypingLoop(channelId, history).catch(err => { });
+
+            setTimeout(() => {
+                history.multipleMessages = false;
+                history.currentlyResponding = false;
+                history.typing = false;
+
+                // send generated response to discord
+                sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage).then(() => {
+                    log(`[${channelId}]`, "[Starting Conversation]", `"${responseMessage.replace(/\n/g, " ")}"`);
+                }).catch(err => {
+                    log(`[${channelId}]`, "[Error]", "Failed to send generated response while starting conversation:", err);
+                });
+            }, respondDelay);
+        });
+    }
+}, config.startConversationsInterval);
+// }, 0);
 
 main();
 
@@ -23,8 +112,6 @@ function main() {
         user: {},
         lastSequenceNumber: null
     };
-    const allHistory = [];
-    const rateLimits = [];
 
     const gateway = connectGateway();
     log(`Conecting to Discord gateway at '${gateway.gatewayUrl}'`);
@@ -43,13 +130,10 @@ function main() {
             properties: config.discord.properties,
             presence: config.discord.presence
         });
-
-        // check history
-        gateway.whileConnected(() => checkHistory(allHistory), config.historyCheck);
     });
 
     // events (dispatch)
-    gateway.on("event", ({ s: sequenceNumber, t: event, d: data }) => {
+    gateway.on("event", async ({ s: sequenceNumber, t: event, d: data }) => {
         if (sequenceNumber !== null) discordClient.lastSequenceNumber = sequenceNumber;
         if (event === "READY") {
             discordClient.user = data.user;
@@ -59,48 +143,59 @@ function main() {
             log(`${discordClient.user.username} is awake, lock your doors`);
         } else
             if (event === "MESSAGE_CREATE") {
-                const guildId = data.guild_id;
                 const channelId = data.channel_id;
+                const channel = await getChannel(channelId).catch(err => log(`Failed to get channel '${channelId}'`));
+                if (!channel) return; // if failed to get channel
+                const guildId = data.guild_id;
                 const timestamp = new Date(data.timestamp);
-                const isDm = guildId ? false : true; // NOTE: cant differentiate between group chat and dm, will probably need seperate api call
+                const isMentioned = data.mentions?.some(i => i.id === discordClient.user.id);
+                const isServer = channel.type === 0;
+                const isDm = channel.type === 1;
+                const isGroupChat = channel.type === 3;
+                const type = isServer ? "Server" : isDm ? "DM" : isGroupChat ? "Group Chat" : null;
                 const message = data.content
                     .replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.username); // replace mention with username
 
-                if (!message) return; // no message (eg. attachment with no message content)
                 if (data.author.id === discordClient.user.id) return; // message from self
                 if (data.author.bot && !config.respondToBots) return; // bot
-                if (config.blacklistedChannels?.includes(channelId)) return; // blacklisted channel
-                if (!isDm && !config.respondToDms) return; // is dm
-                if (!isDm && // if dm, skip everything after
-                    !config.channels?.includes(channelId) && // if not in channel array
-                    !config.servers?.includes(guildId) && // if not in guild array
-                    !config.users?.includes(data.author.id) && // if not in user array
-                    (!config.respondToMentions || !data.mentions?.some(i => i.id === discordClient.user.id)) // if mentioned with respondToMentions
-                ) return; // return if not a dm and no match in either channel, server, users or mentions matched
+                if (!message) return; // no message (eg. attachment with no message content)
                 if (config.ignorePrefix && config.ignorePrefix?.some(i => message.startsWith(i))) return; // message starts with ignore prefix
                 if (rateLimits.includes(channelId)) return; // channel is rate limited
+                if (config.blacklistedChannels?.includes(channelId)) return; // blacklisted channel
+                if (isServer && config.blacklistedServers?.includes(guildId)) return; // blacklisted server
+                if (config.respondToAllMentions && !isMentioned) {
+                    if (isServer && !config.respondToAllServers && !config.serverChannels.includes(channelId) && !config.servers.includes(guildId)) return; // is server
+                    if (isDm && !config.respondToAllDms && !config.dmChannels.includes(channelId)) return; // is dm
+                    if (isGroupChat && !config.respondToAllGroupChats && !config.groupChatChannels.includes(channelId)) return; // is gc
+                }
 
                 const promptObject = {
                     // stuff to pass to the prompt, like usernames etc
                     message,
+                    guildId,
+                    timestamp,
                     referencedMessage: data.referenced_message,
                     me: discordClient,
                     author: data.author,
                     member: data.member,
-                    guildId: guildId,
-                    channelId: channelId,
+                    channel,
+                    channelId,
+                    type,
+                    isServer,
                     isDm,
-                    timestamp,
+                    isGroupChat,
                     ...config.promptData
                 };
 
                 const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
                 const history = historyIndex >= 0 ? allHistory[historyIndex] : allHistory[allHistory.push({
-                    channelId: channelId,
+                    channelId,
+                    channel,
                     systemPrompt: formatString(systemPromptText, promptObject),
                     messages: [],
                     created: Date.now(),
                     lastUpdated: Date.now(),
+                    startedConversation: false,
                     multipleMessages: false,
                     currentlyResponding: false,
                     typing: false
@@ -131,7 +226,7 @@ function main() {
 
                 // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err)); // start typing
                 // get generated response
-                generateResponse(prompt, history).then(async response => {
+                await generateResponse(prompt, history).then(response => {
                     const parsedResponse = responseParser(response.content);
                     const responseMessage = parsedResponse.message;
 
@@ -158,7 +253,7 @@ function main() {
                     debug(`Delaying response by ${trueDelay}ms (read: ${readDelay}ms, think: ${thinkDelay}ms, respond: ${respondDelay})`);
 
                     if (trueDelay - respondDelay > 100 && config.typing) setTimeout(() => {
-                        startTypingLoop(channelId, history);
+                        startTypingLoop(channelId, history).catch(err => { });
                     }, trueDelay - respondDelay);
 
                     setTimeout(() => {
@@ -226,6 +321,30 @@ function startTyping(channelId) {
             const json = await response.json().catch(err => { });
             if (response.status === 204) {
                 resolve();
+            } else {
+                reject(`Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`);
+            }
+        }).catch(err => {
+            reject(err);
+        });
+    });
+}
+
+function getChannel(channelId) {
+    return new Promise((resolve, reject) => {
+        debug(`Getting channel '${channelId}'`);
+        const cachedChannel = cache.channels.find(i => i.id === channelId);
+        if (cachedChannel) return resolve(cachedChannel);
+        fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}`, {
+            method: "GET",
+            headers: {
+                Authorization: `${!config.discord.isUser ? "Bot " : ""}${secrets.discordToken}`
+            }
+        }).then(async response => {
+            const json = await response.json().catch(err => { });
+            if (response.status === 200 && json?.id) {
+                cache.channels.push(json);
+                resolve(json);
             } else {
                 reject(`Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`);
             }

@@ -2,14 +2,29 @@
     "debug": false,
     "reconnectTimeout": 1000,
     "respondToBots": false,
-    "respondToDms": true,
+    "respondToAllServers": false,
+    "respondToAllDms": true,
+    "respondToAllGroupChats": true,
+    "respondToAllMentions": true,
+    "dmChannels": [],
+    "groupChatChannels": [],
+    "serverChannels": [
+        "1309851265764818954",
+        "1309396066482786318"
+    ],
+    "servers": [
+        "1309396066482786315"
+    ],
     "historyCheck": 30000,
     "historyLength": 26,
     "historyDelete": 600000,
     "promptLocation": "prompt.txt",
     "systemPromptLocation": "system-prompt.txt",
+    "conversationPromptLocation": "conversation-prompt.txt",
     "logLocation": "latest.log",
     "delayMax": 60000,
+    "cache": true,
+    "cacheResetInterval": 86400000,
     "readDelayPerCharacter": 40,
     "thinkDelayMin": 2500,
     "thinkDelayMax": 4000,
@@ -22,21 +37,22 @@
     "reply": false,
     "replyMention": false,
     "ignoreHistory": true,
+    "startConversations": true,
+    "startConversationsInterval": 600000,
+    "startConversationsMinTime": 3600000,
+    "startConversationsChance": 100,
+    "startConversationsChannels": [
+        "1309851265764818954",
+        "1310486302700863642"
+    ],
+    "blacklistedChannels": [
+        "1310490307137245216"
+    ],
     "promptData": {
         "name": "Mai Sakurajima",
         "personality": "just be a friend",
-        "other": "You are female\nYou are 17 years old\nYour username is yoshinosigma69\nStop using \"wut\" as an abbreviation\nStop using \"lol\" so much"
+        "other": "You are female\nYou are 17 years old"
     },
-    "respondToMentions": true,
-    "channels": [
-        "1132874647520682025",
-        "1309851265764818954"
-    ],
-    "servers": [
-        "1309396066482786315"
-    ],
-    "users": [],
-    "blacklistedChannels": ["1310490307137245216"],
     "openAi": {
         "apiBaseUrl": "http://victor:1234",
         "model": "gpt-4o-mini",
