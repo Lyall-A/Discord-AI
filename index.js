@@ -141,8 +141,8 @@ function main() {
             discordClient.user = data.user;
             // discordClient.more shit, FUCK OFF!
 
-            log(`Online as ${discordClient.user.username}${discordClient.user.discriminator ? `#${discordClient.user.discriminator}` : ""} (${discordClient.user.id})`);
-            log(`${discordClient.user.username} is awake, lock your doors`);
+            log(`Online as ${discordClient.user.global_name ? `${discordClient.user.global_name}, ` : ""}${discordClient.user.username}${parseInt(discordClient.user.discriminator) ? `#${discordClient.user.discriminator}` : ""} (${discordClient.user.id})`);
+            log(`${discordClient.user.global_name || discordClient.user.username} is awake, lock your doors`);
         } else
             if (event === "MESSAGE_CREATE") {
                 const channelId = data.channel_id;
@@ -156,7 +156,7 @@ function main() {
                 const isGroupChat = channel.type === 3;
                 const type = isServer ? "Server" : isDm ? "DM" : isGroupChat ? "Group Chat" : null;
                 const message = data.content
-                    .replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.username); // replace mention with username
+                    .replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.global_name || discordClient.user.username); // replace mention with username
 
                 if (data.author.id === discordClient.user.id) return; // message from self
                 if (data.author.bot && !config.respondToBots) return; // bot
