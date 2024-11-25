@@ -38,7 +38,7 @@ if (config.startConversations) setInterval(async () => {
     for (const channelId of config.startConversationsChannels) {
         if (random(1, 100) > config.startConversationsChance) continue;
 
-        const channel = await getChannel(channelId).catch(err => { console.log(err) });
+        const channel = await getChannel(channelId).catch(err => { });
         if (!channel) continue;
 
         const isServer = channel.type === 0;
