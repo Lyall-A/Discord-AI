@@ -40,7 +40,7 @@
     "startConversations": true,
     "startConversationsInterval": 600000,
     "startConversationsMinTime": 3600000,
-    "startConversationsChance": 100,
+    "startConversationsChance": 10,
     "startConversationsChannels": [
         "1309851265764818954",
         "1310486302700863642"
