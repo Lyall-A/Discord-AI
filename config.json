@@ -2,6 +2,7 @@
     "debug": false,
     "reconnectTimeout": 1000,
     "respondToBots": false,
+    "respondToDms": true,
     "historyCheck": 30000,
     "historyLength": 26,
     "historyDelete": 600000,
@@ -35,13 +36,14 @@
         "1309396066482786315"
     ],
     "users": [],
+    "blacklistedChannels": ["1310490307137245216"],
     "openAi": {
         "apiBaseUrl": "http://victor:1234",
         "model": "gpt-4o-mini",
         "temperature": 0.7
     },
     "discord": {
-        "isUser": false,
+        "isUser": true,
         "gatewayBaseUrl": "wss://gateway.discord.gg",
         "apiBaseUrl": "https://discord.com/api",
         "apiVersion": 10,

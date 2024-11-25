@@ -1,3 +1,4 @@
 User aliases: {{member.nick}}, {{author.global_name}}, {{author.username}}
+Is DM: ((isDm ? "yes" : "no"))
 Reply to: "{{referencedMessage.content}}" from ((referencedMessage ? referencedMessage.author.global_name || referencedMessage.author.username : ""))
 Message: {{message}}

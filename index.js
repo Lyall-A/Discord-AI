@@ -62,13 +62,21 @@ function main() {
                 const guildId = data.guild_id;
                 const channelId = data.channel_id;
                 const timestamp = new Date(data.timestamp);
+                const isDm = guildId ? false : true; // NOTE: cant differentiate between group chat and dm, will probably need seperate api call
                 const message = data.content
                     .replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.username); // replace mention with username
 
                 if (!message) return; // no message (eg. attachment with no message content)
                 if (data.author.id === discordClient.user.id) return; // message from self
                 if (data.author.bot && !config.respondToBots) return; // bot
-                if (!config.channels?.includes(channelId) && !config.servers?.includes(guildId) && !config.users?.includes(data.author.id) && (!config.respondToMentions || !data.mentions?.some(i => i.id === discordClient.user.id))) return; // isnt in lists, or hasent been mentioned with respondToMentions
+                if (config.blacklistedChannels?.includes(channelId)) return; // blacklisted channel
+                if (!isDm && !config.respondToDms) return; // is dm
+                if (!isDm && // if dm, skip everything after
+                    !config.channels?.includes(channelId) && // if not in channel array
+                    !config.servers?.includes(guildId) && // if not in guild array
+                    !config.users?.includes(data.author.id) && // if not in user array
+                    (!config.respondToMentions || !data.mentions?.some(i => i.id === discordClient.user.id)) // if mentioned with respondToMentions
+                ) return; // return if not a dm and no match in either channel, server, users or mentions matched
                 if (config.ignorePrefix && config.ignorePrefix?.some(i => message.startsWith(i))) return; // message starts with ignore prefix
                 if (rateLimits.includes(channelId)) return; // channel is rate limited
 
@@ -81,6 +89,7 @@ function main() {
                     member: data.member,
                     guildId: guildId,
                     channelId: channelId,
+                    isDm,
                     timestamp,
                     ...config.promptData
                 };

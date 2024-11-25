@@ -8,6 +8,10 @@ it will show a typing indicator on the responding stage
 
 if multiple messages are sent while its already responding, it will cancel out and will respond to the first message as a reply instead of a regular message
 
+it will ignore messages if u are talking to someone else
+
+u can also dm it
+
 (all of that is default config which can be changed)
 
 https://github.com/user-attachments/assets/a90fde37-3935-4823-960e-f214a3eaa4c9
