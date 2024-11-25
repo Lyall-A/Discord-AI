@@ -242,7 +242,7 @@ function main() {
 
                     if (parsedResponse.ignored || !parsedResponse.message) {
                         log(`[${channelId}]`, "[Ignored]", `"${message.replace(/\n/g, " ")}"${parsedResponse.ignoredReason ? `. Reason: ${parsedResponse.ignoredReason}` : ""}`);
-                        if (config.debug) sendMessage(channelId, `Ignored${parsedResponse.ignoredReason ? ` for '${parsedResponse.ignoredReason}'` : ""}`).catch(err => { });
+                        if (config.debug) sendMessage(channelId, `[DEBUG] Ignored${parsedResponse.ignoredReason ? ` for '${parsedResponse.ignoredReason}'` : ""}`).catch(err => { });
                         history.multipleMessages = false;
                         history.currentlyResponding = false;
                         return;
@@ -340,8 +340,8 @@ function startTyping(channelId) {
 
 function getChannel(channelId) {
     return new Promise((resolve, reject) => {
-        debug(`Getting channel '${channelId}'`);
         const cachedChannel = cache.channels.find(i => i.id === channelId);
+        debug(`Getting channel '${channelId}'${cachedChannel ? ` [CACHED]` : ""}`);
         if (cachedChannel) return resolve(cachedChannel);
         fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}`, {
             method: "GET",
