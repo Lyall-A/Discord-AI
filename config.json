@@ -23,9 +23,9 @@
     "replyMention": false,
     "ignoreHistory": true,
     "promptData": {
-        "name": "Yoshino",
+        "name": "Mai Sakurajima",
         "personality": "just be a friend",
-        "other": "You are female\nYou are 20 years old\nYour username is yoshinosigma69\nStop using \"wut\" as an abbreviation\nStop using \"lol\" so much"
+        "other": "You are female\nYou are 17 years old\nYour username is yoshinosigma69\nStop using \"wut\" as an abbreviation\nStop using \"lol\" so much"
     },
     "respondToMentions": true,
     "channels": [
@@ -43,7 +43,7 @@
         "temperature": 0.7
     },
     "discord": {
-        "isUser": false,
+        "isUser": true,
         "gatewayBaseUrl": "wss://gateway.discord.gg",
         "apiBaseUrl": "https://discord.com/api",
         "apiVersion": 10,
@@ -58,7 +58,7 @@
             "status": "online",
             "activities": [
                 {
-                    "name": "skibidi toilet",
+                    "name": "Rascal Does Not Dream of Bunny Girl Senpai",
                     "type": 3
                 }
             ]
