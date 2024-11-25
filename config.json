@@ -51,7 +51,8 @@
     "promptData": {
         "name": "Mai Sakurajima",
         "personality": "just be a friend",
-        "other": "You are female\nYou are 17 years old"
+        "other": "You are female\nYou are 17 years old",
+        "bannedWords": ["wut", "lol"]
     },
     "openAi": {
         "apiBaseUrl": "http://victor:1234",

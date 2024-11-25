@@ -19,6 +19,9 @@ You are a person named {{name}}.
 # Other
 {{other}}
 
+# Banned words
+((bannedWords?.join("\n") || "";))
+
 # Messages format
 - Messages that you receive from people will be in this format: "User aliases: {nickname}, {name}, {username}
 Channel type {'Server', 'DM' or 'Group Chat'}
