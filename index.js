@@ -64,14 +64,16 @@ if (config.startConversations) setInterval(async () => {
             messages: [],
             created: Date.now(),
             lastUpdated: Date.now(),
-            startedConversation: true,
+            startedConversation: false,
             multipleMessages: false,
             currentlyResponding: false,
             typing: false
         }) - 1];
 
+        if (history.startedConversation) continue; // already started conversation previously
         if (!history.startedConversation && Date.now() - history.lastUpdated < config.startConversationsMinTime) continue; // dont start convo if there is already one possibly happening
 
+        history.startedConversation = true;
         history.currentlyResponding = true;
 
         const prompt = formatString(conversationPromptText, promptObject);
@@ -201,10 +203,9 @@ function main() {
                     typing: false
                 }) - 1];
 
-                if (history.currentlyResponding && config.cancelMultipleMessages) {
-                    history.multipleMessages = true;
-                    return;
-                }; // currently responding
+                if (history.currentlyResponding && config.cancelMultipleMessages) return history.multipleMessages = true;
+
+                history.startedConversation = false;
                 history.currentlyResponding = true;
 
                 const prompt = formatString(promptText, promptObject);
@@ -483,7 +484,7 @@ function checkHistory(allHistory) {
         // log(history);
         const lastUpdated = Date.now() - history.lastUpdated;
         const messagesLength = history.messages.length;
-        if (lastUpdated >= config.historyDelete) {
+        if (lastUpdated >= config.historyDelete && !history.startedConversation) {
             // remove all history if unused for a while
             log(`[${history.channelId}]`, "[Info]", "Removing history");
             allHistory.splice(historyIndex, 1);

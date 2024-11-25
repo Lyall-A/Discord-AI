@@ -10,7 +10,7 @@ if multiple messages are sent while its already responding, it will cancel out a
 
 it will ignore messages if u are talking to someone else
 
-it even starts conversations
+it even starts conversations (10% chance every 10 mins)
 
 u can also dm it
 
