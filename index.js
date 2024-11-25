@@ -36,9 +36,16 @@ if (config.cache && config.cacheResetInterval) setInterval(() => {
 // if (config.startConversations) setTimeout(async () => {
 if (config.startConversations) setInterval(async () => {
     for (const channelId of config.startConversationsChannels) {
-        if (random(1, 100) > config.startConversationsChance) continue;
+        const randomNum = random(1, 100);
+        if (randomNum > config.startConversationsChance) {
+            debug(`Not starting conversation for channel '${channelId}', ${randomNum} over ${config.startConversationsChance}`);
+            continue;
+        };
+        debug(`Trying to start conversation for channel '${channelId}'`);
 
-        const channel = await getChannel(channelId).catch(err => { });
+        const channel = await getChannel(channelId).catch(err => {
+            log(`Failed to get channel '${channelId}' while starting conversation`);
+        });
         if (!channel) continue;
 
         const isServer = channel.type === 0;
