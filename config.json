@@ -32,7 +32,7 @@
     "cancelMultipleMessages": true,
     "replyIfMultipleMessages": true,
     "typing": true,
-    "rateLimit": 0,
+    "rateLimit": 1000,
     "ignorePrefix": ["!", "."],
     "reply": false,
     "replyMention": false,
