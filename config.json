@@ -9,8 +9,7 @@
     "dmChannels": [],
     "groupChatChannels": [],
     "serverChannels": [
-        "1309851265764818954",
-        "1309396066482786318"
+        "1309851265764818954"
     ],
     "servers": [
         "1309396066482786315"
@@ -43,7 +42,8 @@
     "startConversationsChance": 10,
     "startConversationsChannels": [
         "1309851265764818954",
-        "1310486302700863642"
+        "1310486302700863642",
+        "1310486378496393226"
     ],
     "blacklistedChannels": [
         "1310490307137245216"
