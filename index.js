@@ -529,6 +529,7 @@ function formatString(string, object = {}) {
 }
 
 function clearCache() {
+    debug("Clearing cache");
     cache.channels = [];
 }
 
