@@ -513,7 +513,7 @@ function formatString(string, object = {}) {
     // {{}} for objects
     // (()) for eval (scary) (dont use 2 parenthesis or start/end with parenthesis lol)
 
-    return string.replace(/\\?(\(\((.+?)\)\)|{{(.+?)}})/g, (match, fullMatch, evalGroup, objectGroup) => {
+    return string.replace(/\\?(\(\((.+?)\)\)|{{(.+?)}})/gs, (match, fullMatch, evalGroup, objectGroup) => {
         if (match.startsWith("\\")) return match.slice(1);
 
         if (evalGroup) {
