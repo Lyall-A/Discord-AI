@@ -285,7 +285,7 @@ async function startConversations() {
 
         await generateResponse(prompt, history).then(response => {
             const parsedResponse = responseParser(response.content);
-            const responseMessage = config.debug ? `[DEBUG] Starting a conversation: ${parsedResponse.message}` : parsedResponse.message;
+            const responseMessage = parsedResponse.message;
 
             if (parsedResponse.ignored || !parsedResponse.message) return debug("Ignored while trying to start conversation");
 
