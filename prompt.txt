@@ -1,4 +1,5 @@
 User aliases: {{member.nick}}, {{author.global_name}}, {{author.username}}
 Channel type: {{type}}
+Timestamp: {{timestamp}}
 Reply to: '{{referencedMessage.content}}' from ((referencedMessage ? referencedMessage.author.global_name || referencedMessage.author.username : ""))
 Message: {{message}}

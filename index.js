@@ -73,7 +73,6 @@ function main() {
                 const channel = await getChannel(channelId).catch(err => log(`Failed to get channel '${channelId}'`));
                 if (!channel) return; // if failed to get channel
                 const guildId = data.guild_id;
-                const timestamp = new Date(data.timestamp);
                 const isMentioned = data.mentions?.some(i => i.id === discordClient.user.id);
                 const isServer = channel.type === 0;
                 const isDm = channel.type === 1;
@@ -99,7 +98,6 @@ function main() {
                     // stuff to pass to the prompt, like usernames etc
                     message,
                     guildId,
-                    timestamp,
                     referencedMessage: data.referenced_message,
                     me: discordClient,
                     author: data.author,
@@ -110,6 +108,7 @@ function main() {
                     isServer,
                     isDm,
                     isGroupChat,
+                    timestamp: new Date().toUTCString(),
                     ...config.promptData
                 };
 
@@ -250,6 +249,7 @@ async function startConversations() {
             isServer,
             isDm,
             isGroupChat,
+            timestamp: new Date().toUTCString(),
             ...config.promptData
         };
 
