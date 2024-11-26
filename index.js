@@ -401,13 +401,11 @@ function generateResponse(prompt, history) {
 
         if (prompt) addHistory({ role: "user", content: prompt }, history);
 
-        const messages = [
-            {
-                role: "system",
-                content: history.systemPrompt
-            },
-            ...history.messages
-        ];
+        const messages = [...history.messages];
+        if (history.systemPrompt) messages.unshift({
+            role: "system",
+            content: history.systemPrompt
+        });
 
         fetch(`${config.openAi.apiBaseUrl}/v1/chat/completions`, {
             method: "POST",
