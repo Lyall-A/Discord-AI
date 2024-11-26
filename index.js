@@ -135,7 +135,7 @@ function main() {
 
                 // console.log("System prompt:", history.systemPrompt);
                 // console.log("Prompt:", prompt);
-                // console.log("History:", history.messages);
+                console.log("History:", history.messages);
 
                 // add rate limit
                 if (config.rateLimit) {
