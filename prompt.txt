@@ -1,5 +1,7 @@
-User aliases: {{member.nick}}, {{author.global_name}}, {{author.username}}
+Channel name: ((channel.name || channel.recipients.map(i => i.global_name || i.username).join(", ") || "";))
 Channel type: {{type}}
+Topic: {{channel.topic}}
 Timestamp: {{timestamp}}
+User aliases: {{member.nick}}, {{author.global_name}}, {{author.username}}
 Reply to: '{{referencedMessage.content}}' from ((referencedMessage ? referencedMessage.author.global_name || referencedMessage.author.username : ""))
 Message: {{message}}

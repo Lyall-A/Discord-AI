@@ -1,5 +1,5 @@
-Channel name: ((channel.name || channel.recipients.map(i => i.global_name || i.username).join(", ");))
+Channel name: ((channel.name || channel.recipients.map(i => i.global_name || i.username).join(", ") || "";))
 Channel type: {{type}}
-Timestamp: {{timestamp}}
 Topic: {{channel.topic}}
+Timestamp: {{timestamp}}
 Start a conversation
