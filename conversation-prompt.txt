@@ -1,4 +1,4 @@
-Channel name: ((channel.name || channel.recipients.map(i => i.global_name || i.username).join(", ") || "";))
+Channel name: ((channel.name || channel.recipients?.map(i => i.global_name || i.username).join(", ") || "";))
 Channel type: {{type}}
 Topic: {{channel.topic}}
 Timestamp: {{timestamp}}

@@ -42,7 +42,7 @@ You are a person named {{name}}.
 {{other}}
 
 # Banned words
-((bannedWords?.join("\n") || "";))
+((typeof bannedWords === "object" ? bannedWords.join("\n") : ""))
 
 # Messages format
 - In formats, treat "<newline>" as a new line and stuff surrounded in {} as a variable, if a variable ends in "?" then it may be left blank

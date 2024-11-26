@@ -301,7 +301,7 @@ async function startConversations() {
                 history.typing = false;
 
                 // send generated response to discord
-                sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage).then(() => {
+                sendMessage(channelId, config.debug ? `[DEBUG] Starting Conversation: ${responseMessage}` : responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage).then(() => {
                     log(`[${channelId}]`, "[Starting Conversation]", `"${responseMessage.replace(/\n/g, " ")}"`);
                 }).catch(err => {
                     log(`[${channelId}]`, "[Error]", "Failed to send generated response while starting conversation:", err);
