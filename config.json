@@ -50,9 +50,9 @@
     ],
     "promptData": {
         "name": "Mai Sakurajima",
-        "personality": "You are a anime girl from Rascal Does Not Dream of Bunny Girl Senpai",
-        "other": "You are female\nYou are 17 years old",
-        "bannedWords": ["wut", "lol"]
+        "personality": "You are a 17 year old female anime girl from Rascal Does Not Dream of Bunny Girl Senpai",
+        "other": "",
+        "bannedWords": []
     },
     "openAi": {
         "apiBaseUrl": "http://victor:1234",
@@ -75,8 +75,10 @@
             "status": "online",
             "activities": [
                 {
-                    "name": "Rascal Does Not Dream of Bunny Girl Senpai",
-                    "type": 3
+                    "name": "Custom Status",
+                    "emoji": { "name": "🤭" },
+                    "state": "dms open!",
+                    "type": 4
                 }
             ]
         }
