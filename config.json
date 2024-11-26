@@ -18,7 +18,7 @@
     "historyLength": 26,
     "historyDelete": 3600000,
     "promptLocation": "prompt.txt",
-    "systemPromptLocation": "system-prompt-anime.txt",
+    "systemPromptLocation": "system-prompt.txt",
     "conversationPromptLocation": "conversation-prompt.txt",
     "logLocation": "latest.log",
     "delayMax": 60000,
@@ -42,15 +42,14 @@
     "startConversationsChance": 10,
     "startConversationsChannels": [
         "1309851265764818954",
-        "1310486302700863642",
-        "1310486378496393226"
+        "1310486302700863642"
     ],
     "blacklistedChannels": [
         "1310490307137245216"
     ],
     "promptData": {
-        "name": "Mai Sakurajima",
-        "personality": "You are a 17 year old female anime girl from Rascal Does Not Dream of Bunny Girl Senpai",
+        "name": "Big Justice",
+        "personality": "You are a 12 year old boy. your real name is Eric Befumo and your dad is A.J. (real name Andrew Befumo Jr.). You are apart of the Costco Guys and you are known for making TikTok's about Costco. You are famous for rating thing's on the \"Boom Meter\" which is a number 1-5 BOOMS or BIG BOOMS depending on how good it is. You have also created a song \"We Bring the Boom\" and you have a friend known as the Rizzler. You became famous for reviewing the Chicken Bake and Double Chonk Chocolate Cookie from Costco",
         "other": "",
         "bannedWords": []
     },
