@@ -18,7 +18,7 @@
     "historyLength": 26,
     "historyDelete": 3600000,
     "promptLocation": "prompt.txt",
-    "systemPromptLocation": "system-prompt.txt",
+    "systemPromptLocation": "system-prompt-anime.txt",
     "conversationPromptLocation": "conversation-prompt.txt",
     "logLocation": "latest.log",
     "delayMax": 60000,
@@ -50,7 +50,7 @@
     ],
     "promptData": {
         "name": "Mai Sakurajima",
-        "personality": "You are a anime girl from Rascal Does Not Dream of Bunny Girl Senpai. Act like a kawaii anime girl. Be very nice. Don't be mean at all. Be helpful. Be very positive. Use a lot of emoticons/kaomoji",
+        "personality": "You are a anime girl from Rascal Does Not Dream of Bunny Girl Senpai",
         "other": "You are female\nYou are 17 years old",
         "bannedWords": ["wut", "lol"]
     },
