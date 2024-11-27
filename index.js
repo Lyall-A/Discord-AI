@@ -126,7 +126,10 @@ function main() {
                     typing: false
                 }) - 1];
 
-                if (history.currentlyResponding && config.cancelMultipleMessages) return history.multipleMessages = true;
+                if (history.currentlyResponding) {
+                    history.multipleMessages = true;
+                    if (config.cancelMultipleMessages) return;
+                }
 
                 history.startedConversation = false;
                 history.currentlyResponding = true;
