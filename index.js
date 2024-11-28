@@ -1,46 +1,65 @@
-const { fetch } = Bun;
 const fs = require("fs");
 
+const {
+    connectGateway,
+    formatString,
+    clearCache,
+    random,
+    log,
+    debug
+} = require("./utils");
+
+// config stuff
 const secrets = require("./secrets.json");
 const config = require("./config.json");
+const promptData = require("./data.json");
 
 // prompts
 let systemPromptText = fs.readFileSync(config.systemPromptLocation, "utf-8");
-let promptText = fs.readFileSync(config.promptLocation, "utf-8");
+let userPromptText = fs.readFileSync(config.userPromptLocation, "utf-8");
 let conversationPromptText = fs.readFileSync(config.conversationPromptLocation, "utf-8");
 
 // monitor prompts for changes
 fs.watchFile(config.systemPromptLocation, () => systemPromptText = fs.readFileSync(config.systemPromptLocation, "utf-8"));
-fs.watchFile(config.promptLocation, () => promptText = fs.readFileSync(config.promptLocation, "utf-8"));
+fs.watchFile(config.userPromptLocation, () => userPromptText = fs.readFileSync(config.userPromptLocation, "utf-8"));
 fs.watchFile(config.conversationPromptLocation, () => conversationPromptText = fs.readFileSync(config.conversationPromptLocation, "utf-8"));
 
+// functions
 const responseParser = require("./responseParser");
 
-log(`${config.promptData.name ? `${config.promptData.name} is` : "I'm"} waking up... be scared`);
-
+// consts
 const cache = {
     channels: [],
 };
 const allHistory = [];
 const rateLimits = [];
+const startDate = new Date();
 
+// intervals
 setInterval(() => checkHistory(allHistory), config.historyCheck); // update history loop
-
 if (config.cache && config.cacheResetInterval) setInterval(clearCache, config.cacheResetInterval); // cache reset loop
-
 if (config.startConversations) setInterval(startConversations, config.startConversationsInterval); // start conversation loop
 // if (config.startConversations) startConversations();
 
+// main
+debug("Debug mode is enabled!");
+log(`${promptData.name ? `${promptData.name} is` : "I'm"} waking up... be scared`);
 main();
 
 function main() {
     const discordClient = {
         user: {},
-        lastSequenceNumber: null
+        lastSequenceNumber: null,
+        connectDate: null
     };
 
     const gateway = connectGateway();
     log(`Conecting to Discord gateway at '${gateway.gatewayUrl}'`);
+
+    gateway.on("open", () => {
+        debug("Connected to Discord gateway");
+        discordClient.connectDate = new Date();
+    });
 
     // hello
     gateway.once("op-10", ({ d: data }) => {
@@ -94,6 +113,36 @@ function main() {
                     if (isGroupChat && !config.respondToAllGroupChats && !config.groupChatChannels.includes(channelId)) return; // is gc
                 }
 
+                // commands
+                // if (config.commands && isMentioned && config.owners?.includes(data.author.id)) {
+                if (config.commands && isMentioned) {
+                    const messageWords = message.split(" ");
+                    const commandIndex = messageWords.findIndex(i => i.toLowerCase().startsWith(config.commandsPrefix?.toLowerCase()));
+                    if (commandIndex >= 0) {
+                        if (!config.owners?.includes(data.author.id)) return await sendMessage(channelId, "your not my daddy!").catch(err => { });
+                        const command = messageWords[commandIndex].substring(config.commandsPrefix?.length).toLowerCase();
+                        const args = messageWords.slice(commandIndex + 1);
+                        if (command === "shutdown" || command === "restart" || command === "reboot") {
+                            log(`Told to shutdown`);
+                            await sendMessage(channelId, "ok :(").catch(err => { });
+                            return process.exit(0);
+                        } else
+                        if (command === "uptime") {
+                            return await sendMessage(channelId, `started on \`${startDate.toUTCString()}\` (${Math.floor((Date.now() - startDate) / 1000)} seconds, work it out urself), last connected to discord gateway on \`${discordClient.connectDate.toUTCString()}\``).catch(err => { });
+                        } else
+                        if (command === "system-prompt") {
+                            return await sendMessage(channelId, `\`\`\`\n${systemPromptText.length > 2000 - 8 ? `${systemPromptText.substring(0, 2000 - 8 - 3)}...` : systemPromptText}\n\`\`\``).catch(err => { });
+                        } else
+                        if (command === "user-prompt") {
+                            return await sendMessage(channelId, `\`\`\`\n${userPromptText.length > 2000 - 8 ? `${userPromptText.substring(0, 2000 - 8 - 3)}...` : userPromptText}\n\`\`\``).catch(err => { });
+                        } else
+                        if (command === "conversation-prompt") {
+                            return await sendMessage(channelId, `\`\`\`\n${conversationPromptText.length > 2000 - 8 ? `${conversationPromptText.substring(0, 2000 - 8 - 3)}...` : conversationPromptText}\n\`\`\``).catch(err => { });
+                        }
+                    }
+                }
+
+                // ai
                 const promptObject = {
                     // stuff to pass to the prompt, like usernames etc
                     message,
@@ -109,7 +158,7 @@ function main() {
                     isDm,
                     isGroupChat,
                     timestamp: new Date().toUTCString(),
-                    ...config.promptData
+                    ...promptData
                 };
 
                 const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
@@ -134,10 +183,10 @@ function main() {
                 history.startedConversation = false;
                 history.currentlyResponding = true;
 
-                const prompt = formatString(promptText, promptObject);
+                const userPrompt = formatString(userPromptText, promptObject);
 
                 // console.log("System prompt:", history.systemPrompt);
-                // console.log("Prompt:", prompt);
+                // console.log("User prompt:", userPrompt);
                 // console.log("History:", history.messages);
 
                 // add rate limit
@@ -153,7 +202,7 @@ function main() {
 
                 // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err)); // start typing
                 // get generated response
-                await generateResponse(prompt, history).then(response => {
+                await generateResponse(userPrompt, history).then(response => {
                     const parsedResponse = responseParser(response.content);
                     const responseMessage = parsedResponse.message;
 
@@ -253,7 +302,7 @@ async function startConversations() {
             isDm,
             isGroupChat,
             timestamp: new Date().toUTCString(),
-            ...config.promptData
+            ...promptData
         };
 
         const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
@@ -284,9 +333,9 @@ async function startConversations() {
         history.startedConversation = true;
         history.currentlyResponding = true;
 
-        const prompt = formatString(conversationPromptText, promptObject);
+        const conversationPrompt = formatString(conversationPromptText, promptObject);
 
-        await generateResponse(prompt, history).then(response => {
+        await generateResponse(conversationPrompt, history).then(response => {
             const parsedResponse = responseParser(response.content);
             const responseMessage = parsedResponse.message;
 
@@ -322,7 +371,10 @@ function startTypingLoop(channelId, history) {
                 if (history.typing) return startTypingLoop(channelId, history);
             }, 9 * 1000);
             resolve();
-        }).catch(err => reject(err));
+        }).catch(err => {
+            debug(err);
+            reject(err);
+        });
     });
 }
 
@@ -339,9 +391,12 @@ function startTyping(channelId) {
             if (response.status === 204) {
                 resolve();
             } else {
-                reject(`Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`);
+                const error = `Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`;
+                debug(error);
+                reject(error);
             }
         }).catch(err => {
+            debug(err);
             reject(err);
         });
     });
@@ -363,9 +418,12 @@ function getChannel(channelId) {
                 cache.channels.push(json);
                 resolve(json);
             } else {
-                reject(`Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`);
+                const error = `Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`;
+                debug(error);
+                reject(error);
             }
         }).catch(err => {
+            debug(err);
             reject(err);
         });
     });
@@ -389,9 +447,12 @@ function sendMessage(channelId, message, options) {
             if (response.status === 200 && json?.id) {
                 resolve();
             } else {
-                reject(`Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`);
+                const error = `Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`;
+                debug(error);
+                reject(error);
             }
         }).catch(err => {
+            debug(err);
             reject(err);
         });
     });
@@ -429,62 +490,15 @@ function generateResponse(prompt, history) {
                 history.lastUpdated = Date.now();
                 resolve(message);
             } else {
-                reject(`Got status code ${response.status}, error: ${json?.error}`);
+                const error = `Got status code ${response.status}, error: ${json?.error}`;
+                debug(error);
+                reject(error);
             }
         }).catch(err => {
+            debug(err);
             reject(err);
         });
     });
-}
-
-function connectGateway() {
-    const gateway = {};
-    const listeners = [];
-    const intervals = [];
-
-    gateway.gatewayUrl = `${config.discord.gatewayBaseUrl}/?v=${config.discord.gatewayVersion}&encoding=json`;
-    gateway.webSocket = new WebSocket(gateway.gatewayUrl);
-    gateway.listeners = listeners;
-    gateway.intervals = intervals;
-    gateway.call = (event, ...args) => {
-        for (let listenerIndex = listeners.length - 1; listenerIndex >= 0; listenerIndex--) {
-            const listener = listeners[listenerIndex];
-            if (listener.event !== event) continue;
-            listener.callback(...args);
-            if (listener.once) listeners.splice(listenerIndex, 1);
-        }
-    }
-    gateway.on = (event, callback) => listeners.push({ event, callback, once: false });
-    gateway.once = (event, callback) => listeners.push({ event, callback, once: true });
-    gateway.sendJson = (json) => gateway.webSocket.send(JSON.stringify(json));
-    gateway.sendText = (text) => gateway.webSocket.send(text);
-    gateway.close = (code) => gateway.webSocket.close(code);
-    gateway.whileConnected = (callback, interval) => intervals.push(setInterval(callback, interval));
-
-    const { webSocket } = gateway;
-
-    webSocket.addEventListener("open", () => {
-        gateway.call("open");
-    });
-
-    webSocket.addEventListener("message", msg => {
-        gateway.call("message", msg);
-        try {
-            const json = JSON.parse(msg.data);
-            gateway.call("json", json);
-
-            gateway.call("op", json);
-            gateway.call(`op-${json.op}`, json);
-            if (json.op === 0) gateway.call("event", json);
-        } catch (err) { };
-    });
-
-    webSocket.addEventListener("close", () => {
-        for (const interval of intervals) clearInterval(interval);
-        gateway.call("close");
-    });
-
-    return gateway;
 }
 
 function addHistory(message, history) {
@@ -508,45 +522,4 @@ function checkHistory(allHistory) {
             history.messages.splice(0, messagesLength - config.historyLength);
         }
     }
-}
-
-function formatString(string, object = {}) {
-    // {{}} for objects
-    // (()) for eval (scary) (dont use 2 parenthesis or start/end with parenthesis lol)
-
-    return string.replace(/\\?(\(\((.+?)\)\)|{{(.+?)}})/gs, (match, fullMatch, evalGroup, objectGroup) => {
-        if (match.startsWith("\\")) return match.slice(1);
-
-        if (evalGroup) {
-            return eval(`${Object.entries(object).map(([key, value]) => `const ${key} = ${JSON.stringify(value)};`).join("\n")}\n${evalGroup}`);
-        }
-
-        if (objectGroup) {
-            return objectGroup.split(".").reduce((acc, key) => acc && acc[key], object) ?? "";
-        }
-
-        return match;
-    });
-}
-
-function clearCache() {
-    debug("Clearing cache");
-    cache.channels = [];
-}
-
-function random(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function log(...msgs) {
-    const timestamp = new Date().toLocaleString();
-    const message = [`[${timestamp}]`, ...msgs];
-    console.log(...message);
-    if (config.logLocation) fs.appendFileSync(config.logLocation, message.join(" ") + "\n");
-}
-
-function debug(...msgs) {
-    if (!config.debug) return;
-    const message = ["[DEBUG]", ...msgs];
-    log(...message);
 }

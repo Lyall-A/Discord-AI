@@ -1,6 +1,11 @@
 {
-    "debug": false,
+    "debug": true,
     "reconnectTimeout": 1000,
+    "owners": [
+        "492729974026141697"
+    ],
+    "commands": true,
+    "commandsPrefix": "bitch!",
     "respondToBots": false,
     "respondToAllServers": false,
     "respondToAllDms": true,
@@ -17,7 +22,7 @@
     "historyCheck": 30000,
     "historyLength": 26,
     "historyDelete": 3600000,
-    "promptLocation": "prompt.txt",
+    "userPromptLocation": "user-prompt.txt",
     "systemPromptLocation": "system-prompt.txt",
     "conversationPromptLocation": "conversation-prompt.txt",
     "logLocation": "latest.log",
@@ -47,10 +52,6 @@
     "blacklistedChannels": [
         "1310490307137245216"
     ],
-    "promptData": {
-        "name": "Mai Sakurajima",
-        "personality": "You are a 17 year old anime girl from Rascal Does Not Dream of Bunny Girl Senpai, just be helpful and nice"
-    },
     "openAi": {
         "apiBaseUrl": "http://victor:1234",
         "model": "gpt-4o-mini",
