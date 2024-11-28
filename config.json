@@ -1,5 +1,5 @@
 {
-    "debug": true,
+    "debug": false,
     "reconnectTimeout": 1000,
     "owners": [
         "492729974026141697"
