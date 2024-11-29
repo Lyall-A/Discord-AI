@@ -131,6 +131,9 @@ function main() {
                         if (command === "uptime") {
                             return await sendMessage(channelId, `started on \`${startDate.toUTCString()}\` (${Math.floor((Date.now() - startDate) / 1000)} seconds, work it out urself), last connected to discord gateway on \`${discordClient.connectDate.toUTCString()}\``).catch(err => { });
                         } else
+                        if (command === "say") {
+                            return await sendMessage(channelId, args.join(" ")).catch(err => { });
+                        } else
                         if (command === "system-prompt") {
                             return await sendMessage(channelId, `\`\`\`\n${systemPromptText.length > 2000 - 8 ? `${systemPromptText.substring(0, 2000 - 8 - 3)}...` : systemPromptText}\n\`\`\``).catch(err => { });
                         } else
