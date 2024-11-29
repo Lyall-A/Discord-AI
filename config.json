@@ -35,6 +35,9 @@
     "respondDelayPerCharacter": 80,
     "cancelMultipleMessages": true,
     "replyIfMultipleMessages": true,
+    "generateSpeech": true,
+    "speechOnly": false,
+    "speechFileName": "kawaii",
     "typing": true,
     "rateLimit": 1000,
     "ignorePrefix": ["!", "."],
@@ -47,7 +50,7 @@
     "startConversationsChance": 10,
     "startConversationsChannels": [
         "1309851265764818954",
-        "1310486302700863642"
+        "1169662954359242813"
     ],
     "blacklistedChannels": [
         "1310490307137245216"
@@ -57,8 +60,17 @@
         "model": "gpt-4o-mini",
         "temperature": 0.7
     },
+    "elevenLabs": {
+        "apiBaseUrl": "https://api.elevenlabs.io",
+        "voiceId": "cgSgspJ2msm6clMCkdW9",
+        "model": "eleven_multilingual_v2",
+        "languageCode": null,
+        "stability": 50,
+        "similarity": 75,
+        "speakerBoost": false
+    },
     "discord": {
-        "isUser": true,
+        "isUser": false,
         "gatewayBaseUrl": "wss://gateway.discord.gg",
         "apiBaseUrl": "https://discord.com/api",
         "apiVersion": 10,

@@ -103,11 +103,12 @@ function main() {
                 if (data.author.id === discordClient.user.id) return; // message from self
                 if (data.author.bot && !config.respondToBots) return; // bot
                 if (!message) return; // no message (eg. attachment with no message content)
+                if (!type) return; // unknown channel type (thread, etc)
                 if (config.ignorePrefix && config.ignorePrefix?.some(i => message.startsWith(i))) return; // message starts with ignore prefix
                 if (rateLimits.includes(channelId)) return; // channel is rate limited
                 if (config.blacklistedChannels?.includes(channelId)) return; // blacklisted channel
                 if (isServer && config.blacklistedServers?.includes(guildId)) return; // blacklisted server
-                if (config.respondToAllMentions && !isMentioned) {
+                if (!config.respondToAllMentions || (config.respondToAllMentions && !isMentioned)) {
                     if (isServer && !config.respondToAllServers && !config.serverChannels.includes(channelId) && !config.servers.includes(guildId)) return; // is server
                     if (isDm && !config.respondToAllDms && !config.dmChannels.includes(channelId)) return; // is dm
                     if (isGroupChat && !config.respondToAllGroupChats && !config.groupChatChannels.includes(channelId)) return; // is gc
@@ -202,7 +203,7 @@ function main() {
 
                 // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err)); // start typing
                 // get generated response
-                await generateResponse(userPrompt, history).then(response => {
+                await generateResponse(userPrompt, history).then(async response => {
                     const parsedResponse = responseParser(response.content);
                     const responseMessage = parsedResponse.message;
 
@@ -213,10 +214,13 @@ function main() {
                         if (config.debug) sendMessage(channelId, `[DEBUG] Ignored${parsedResponse.ignoredReason ? ` for '${parsedResponse.ignoredReason}'` : ""}`).catch(err => { });
                         history.multipleMessages = false;
                         history.currentlyResponding = false;
+                        history.typing = false;
                         return;
                     }
 
                     if (!config.ignoreHistory) addHistory(response, history); // add response to history only if it isnt an ignored response
+
+                    const speech = config.generateSpeech ? await generateSpeech(responseMessage).catch(err => log(`Failed to generate speech for '${responseMessage}':`, err)) : null;
 
                     // create delay, readDelayPerCharacter will be multiplied by message length, thinkDelayMin and thinkDelayMax is a random delay between and respondDelayPerCharacter will be multiplied by response length
                     const readDelay = (config.readDelayPerCharacter * message.length);
@@ -243,7 +247,7 @@ function main() {
                         history.typing = false;
 
                         // send generated response to discord
-                        sendMessage(channelId, responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions).then(() => {
+                        (speech ? sendMessageWithSpeech : sendMessage)(channelId, speech && config.speechOnly ? "" : responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions, speech).then(() => {
                             log(`[${channelId}]`, "[Message]", `"${message.replace(/\n/g, " ")}" > "${responseMessage.replace(/\n/g, " ")}"`);
                         }).catch(err => {
                             log(`[${channelId}]`, "[Error]", "Failed to send generated response:", err);
@@ -251,6 +255,9 @@ function main() {
                         });
                     }, trueDelay);
                 }).catch(err => {
+                    history.multipleMessages = false;
+                    history.currentlyResponding = false;
+                    history.typing = false;
                     log(`[${channelId}]`, "[Error]", "Failed to generate response", err);
                     sendMessage(channelId, `Failed to generate response\n\`\`\`\n${err}\n\`\`\``);
                 });
@@ -335,13 +342,21 @@ async function startConversations() {
 
         const conversationPrompt = formatString(conversationPromptText, promptObject);
 
-        await generateResponse(conversationPrompt, history).then(response => {
+        await generateResponse(conversationPrompt, history).then(async response => {
             const parsedResponse = responseParser(response.content);
             const responseMessage = parsedResponse.message;
 
-            if (parsedResponse.ignored || !parsedResponse.message) return debug("Ignored while trying to start conversation");
+            if (parsedResponse.ignored || !parsedResponse.message) {
+                debug("Ignored while trying to start conversation");
+                history.multipleMessages = false;
+                history.currentlyResponding = false;
+                history.typing = false;
+                return;
+            }
 
             addHistory(response, history);
+
+            const speech = config.generateSpeech ? await generateSpeech(responseMessage).catch(err => log(`Failed to generate speech for '${responseMessage}':`, err)) : null;
 
             const respondDelay = (config.respondDelayPerCharacter * responseMessage.length);
 
@@ -353,12 +368,17 @@ async function startConversations() {
                 history.typing = false;
 
                 // send generated response to discord
-                sendMessage(channelId, config.debug ? `[DEBUG] Starting Conversation: ${responseMessage}` : responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage).then(() => {
+                (speech ? sendMessageWithSpeech : sendMessage)(channelId, speech && config.speechOnly ? "" : config.debug ? `[DEBUG] Starting Conversation: ${responseMessage}` : responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, { }, speech).then(() => {
                     log(`[${channelId}]`, "[Starting Conversation]", `"${responseMessage.replace(/\n/g, " ")}"`);
                 }).catch(err => {
                     log(`[${channelId}]`, "[Error]", "Failed to send generated response while starting conversation:", err);
                 });
             }, respondDelay);
+        }).catch(err => {
+            history.multipleMessages = false;
+            history.currentlyResponding = false;
+            history.typing = false;
+            log(`[${channelId}]`, "[Error]", "Failed to generate response while starting conversation", err);
         });
     }
 }
@@ -458,6 +478,37 @@ function sendMessage(channelId, message, options) {
     });
 }
 
+function sendMessageWithSpeech(channelId, message, options, attachment) {
+    return new Promise((resolve, reject) => {
+        debug(`Sending message with speech in channel '${channelId}'`);
+        const formData = new FormData();
+        formData.append("payload_json", JSON.stringify({
+            content: message,
+            ...options
+        }));
+        formData.append("files[0]", new Blob([attachment], { type: "audio/mp3" }), `${config.speechFileName}.mp3`);
+        fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/messages`, {
+            method: "POST",
+            headers: {
+                Authorization: `${!config.discord.isUser ? "Bot " : ""}${secrets.discordToken}`
+            },
+            body: formData
+        }).then(async response => {
+            const json = await response.json().catch(err => { });
+            if (response.status === 200 && json?.id) {
+                resolve();
+            } else {
+                const error = `Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`;
+                debug(error);
+                reject(error);
+            }
+        }).catch(err => {
+            debug(err);
+            reject(err);
+        });
+    });
+}
+
 function generateResponse(prompt, history) {
     return new Promise((resolve, reject) => {
         // debug(`Generating response for '${prompt}'`);
@@ -491,6 +542,44 @@ function generateResponse(prompt, history) {
                 resolve(message);
             } else {
                 const error = `Got status code ${response.status}, error: ${json?.error}`;
+                debug(error);
+                reject(error);
+            }
+        }).catch(err => {
+            debug(err);
+            reject(err);
+        });
+    });
+}
+
+function generateSpeech(text) {
+    return new Promise((resolve, reject) => {
+        debug("Generating speech");
+
+        fetch(`${config.elevenLabs.apiBaseUrl}/v1/text-to-speech/${config.elevenLabs.voiceId}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "xi-api-key": secrets.elevenLabsApiKey
+            },
+            body: JSON.stringify({
+                text,
+                model_id: config.elevenLabs.model,
+                language_code: config.elevenLabs.languageCode,
+                voice_settings: {
+                    stability: config.elevenLabs.stability / 100,
+                    similarity_boost: config.elevenLabs.similarity / 100,
+                    use_speaker_boost: config.elevenLabs.speakerBoost
+                }
+            })
+        }).then(async response => {
+            if (response.status === 200) {
+                const arrayBuffer = await response.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                resolve(buffer);
+            } else {
+                const json = await response.json().catch(err => { });
+                const error = `Got status code ${response.status}, error: ${json?.detail?.message}`;
                 debug(error);
                 reject(error);
             }
