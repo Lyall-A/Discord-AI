@@ -2,7 +2,8 @@
     "debug": true,
     "reconnectTimeout": 1000,
     "owners": [
-        "492729974026141697"
+        "492729974026141697",
+        "1008790719198154833"
     ],
     "commands": true,
     "commandsPrefix": "bitch!",

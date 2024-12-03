@@ -128,6 +128,9 @@ function main() {
                             await sendMessage(channelId, "ok :(").catch(err => { });
                             return process.exit(0);
                         } else
+                        if (command === "say") {
+                            return await sendMessage(channelId, args.join(" ")).catch(err => { });;
+                        }
                         if (command === "uptime") {
                             return await sendMessage(channelId, `started on \`${startDate.toUTCString()}\` (${Math.floor((Date.now() - startDate) / 1000)} seconds, work it out urself), last connected to discord gateway on \`${discordClient.connectDate.toUTCString()}\``).catch(err => { });
                         } else
