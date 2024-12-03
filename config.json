@@ -1,5 +1,5 @@
 {
-    "debug": true,
+    "debug": false,
     "reconnectTimeout": 1000,
     "owners": [
         "492729974026141697",
@@ -58,7 +58,7 @@
         "1310490307137245216"
     ],
     "openAi": {
-        "apiBaseUrl": "https://api.openai.com",
+        "apiBaseUrl": "https://llm.victor.pw",
         "model": "gpt-4o-mini",
         "temperature": 0.7
     },
