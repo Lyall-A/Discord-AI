@@ -58,7 +58,7 @@
         "1310490307137245216"
     ],
     "openAi": {
-        "apiBaseUrl": "https://llm.victor.pw",
+        "apiBaseUrl": "https://api.openai.com",
         "model": "gpt-4o-mini",
         "temperature": 0.7
     },
