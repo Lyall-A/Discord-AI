@@ -5,6 +5,6 @@ module.exports = (message) => {
     return {
         ignored: message.match(/^ignored/i),
         ignoredReason: message.match(/^ignored:\s*(.*)/i)?.[1],
-        message: message.match(/^me:\s*(.+)/is)?.[1]
+        message: message.match(/^(?:me:\s*)*(.+)/is)?.[1]
     };
 }

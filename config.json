@@ -1,5 +1,5 @@
 {
-    "debug": false,
+    "debug": true,
     "reconnectTimeout": 1000,
     "owners": [
         "492729974026141697"
@@ -35,9 +35,10 @@
     "respondDelayPerCharacter": 80,
     "cancelMultipleMessages": true,
     "replyIfMultipleMessages": true,
-    "generateSpeech": true,
+    "generateSpeech": false,
     "speechOnly": false,
     "speechFileName": "kawaii",
+    "longMessageFileName": "no no no no no",
     "typing": true,
     "rateLimit": 1000,
     "ignorePrefix": ["!", "."],
@@ -56,7 +57,7 @@
         "1310490307137245216"
     ],
     "openAi": {
-        "apiBaseUrl": "http://victor:1234",
+        "apiBaseUrl": "https://api.openai.com",
         "model": "gpt-4o-mini",
         "temperature": 0.7
     },
@@ -87,7 +88,7 @@
                 {
                     "name": "Custom Status",
                     "emoji": { "name": "🤭" },
-                    "state": "dms open",
+                    "state": "dms open <3",
                     "type": 4
                 }
             ]

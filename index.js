@@ -132,13 +132,13 @@ function main() {
                             return await sendMessage(channelId, `started on \`${startDate.toUTCString()}\` (${Math.floor((Date.now() - startDate) / 1000)} seconds, work it out urself), last connected to discord gateway on \`${discordClient.connectDate.toUTCString()}\``).catch(err => { });
                         } else
                         if (command === "system-prompt") {
-                            return await sendMessage(channelId, `\`\`\`\n${systemPromptText.length > 2000 - 8 ? `${systemPromptText.substring(0, 2000 - 8 - 3)}...` : systemPromptText}\n\`\`\``).catch(err => { });
+                            return await sendMessage(channelId, `\`\`\`\n${systemPromptText}\n\`\`\``).catch(err => { });
                         } else
                         if (command === "user-prompt") {
-                            return await sendMessage(channelId, `\`\`\`\n${userPromptText.length > 2000 - 8 ? `${userPromptText.substring(0, 2000 - 8 - 3)}...` : userPromptText}\n\`\`\``).catch(err => { });
+                            return await sendMessage(channelId, `\`\`\`\n${userPromptText}\n\`\`\``).catch(err => { });
                         } else
                         if (command === "conversation-prompt") {
-                            return await sendMessage(channelId, `\`\`\`\n${conversationPromptText.length > 2000 - 8 ? `${conversationPromptText.substring(0, 2000 - 8 - 3)}...` : conversationPromptText}\n\`\`\``).catch(err => { });
+                            return await sendMessage(channelId, `\`\`\`\n${conversationPromptText}\n\`\`\``).catch(err => { });
                         }
                     }
                 }
@@ -247,7 +247,9 @@ function main() {
                         history.typing = false;
 
                         // send generated response to discord
-                        (speech ? sendMessageWithSpeech : sendMessage)(channelId, speech && config.speechOnly ? "" : responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, messageOptions, speech).then(() => {
+                        const attachments = [];
+                        if (speech) attachments.push({ name: `${config.speechFileName}.mp3`, type: "audio/mp3", data: speech });
+                        sendMessage(channelId, speech && config.speechOnly ? "" : responseMessage, messageOptions, attachments).then(() => {
                             log(`[${channelId}]`, "[Message]", `"${message.replace(/\n/g, " ")}" > "${responseMessage.replace(/\n/g, " ")}"`);
                         }).catch(err => {
                             log(`[${channelId}]`, "[Error]", "Failed to send generated response:", err);
@@ -368,7 +370,9 @@ async function startConversations() {
                 history.typing = false;
 
                 // send generated response to discord
-                (speech ? sendMessageWithSpeech : sendMessage)(channelId, speech && config.speechOnly ? "" : config.debug ? `[DEBUG] Starting Conversation: ${responseMessage}` : responseMessage.length > 2000 ? `${responseMessage.substring(0, 2000 - 3)}...` : responseMessage, { }, speech).then(() => {
+                const attachments = [];
+                if (speech) attachments.push({ name: `${config.speechFileName}.mp3`, type: "audio/mp3", data: speech });
+                sendMessage(channelId, speech && config.speechOnly ? "" : config.debug ? `[DEBUG] Starting Conversation: ${responseMessage}` : responseMessage, { }, attachments).then(() => {
                     log(`[${channelId}]`, "[Starting Conversation]", `"${responseMessage.replace(/\n/g, " ")}"`);
                 }).catch(err => {
                     log(`[${channelId}]`, "[Error]", "Failed to send generated response while starting conversation:", err);
@@ -449,44 +453,48 @@ function getChannel(channelId) {
     });
 }
 
-function sendMessage(channelId, message, options) {
+// function sendMessage(channelId, message, options) {
+//     return new Promise((resolve, reject) => {
+//         debug(`Sending message in channel '${channelId}'`);
+//         fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/messages`, {
+//             method: "POST",
+//             headers: {
+//                 "Content-Type": "application/json",
+//                 Authorization: `${!config.discord.isUser ? "Bot " : ""}${secrets.discordToken}`
+//             },
+//             body: JSON.stringify({
+//                 content: message,
+//                 ...options
+//             })
+//         }).then(async response => {
+//             const json = await response.json().catch(err => { });
+//             if (response.status === 200 && json?.id) {
+//                 resolve();
+//             } else {
+//                 const error = `Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`;
+//                 debug(error);
+//                 reject(error);
+//             }
+//         }).catch(err => {
+//             debug(err);
+//             reject(err);
+//         });
+//     });
+// }
+
+function sendMessage(channelId, message, options, attachments = [ ]) {
     return new Promise((resolve, reject) => {
         debug(`Sending message in channel '${channelId}'`);
-        fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/messages`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `${!config.discord.isUser ? "Bot " : ""}${secrets.discordToken}`
-            },
-            body: JSON.stringify({
-                content: message,
-                ...options
-            })
-        }).then(async response => {
-            const json = await response.json().catch(err => { });
-            if (response.status === 200 && json?.id) {
-                resolve();
-            } else {
-                const error = `Got status code ${response.status}, message: ${json?.message}, code: ${json?.code}`;
-                debug(error);
-                reject(error);
-            }
-        }).catch(err => {
-            debug(err);
-            reject(err);
-        });
-    });
-}
-
-function sendMessageWithSpeech(channelId, message, options, attachment) {
-    return new Promise((resolve, reject) => {
-        debug(`Sending message with speech in channel '${channelId}'`);
         const formData = new FormData();
         formData.append("payload_json", JSON.stringify({
-            content: message,
-            ...options
+            content: message.length > 2000 ? `${message.substring(0, 2000 - 3)}...` : message,
+            ...(options || {})
         }));
-        formData.append("files[0]", new Blob([attachment], { type: "audio/mp3" }), `${config.speechFileName}.mp3`);
+        if (message.length > 2000) attachments?.push({ name: `${config.longMessageFileName}.txt`, type: "text/plain", data: message });
+        for (const attachmentIndex in attachments) {
+            const attachment = attachments[attachmentIndex];
+            formData.append(`files[${attachmentIndex}]`, new Blob([attachment.data], { type: attachment.type }), attachment.name);
+        }
         fetch(`${config.discord.apiBaseUrl}/v${config.discord.apiVersion}/channels/${channelId}/messages`, {
             method: "POST",
             headers: {
