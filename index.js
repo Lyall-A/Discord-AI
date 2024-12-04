@@ -498,9 +498,12 @@ function parseMessageWithCodeBlocks(input) {
         const ext = match[1] || 'txt';
         const code = match[2].trim(); // Extract code block content
         const filename = ext==='txt' ? `text_${i}.txt` : `code_${i}.${ext}`;
-        attachments.push({ data: code, name: filename, type: ext });
-        // Replace the code block with a placeholder in the message
-        message = message.replace(match[0], `\n_(see attachment ${filename})_\n`);
+
+        if (code.split(/\n/).length > 10) { //only extract out code longer than 10 lines
+            attachments.push({ data: code, name: filename, type: ext });
+            // Replace the code block with a placeholder in the message
+            message = message.replace(match[0], `\n_(see attachment ${filename})_\n`);
+        }
     }
 
     return {
