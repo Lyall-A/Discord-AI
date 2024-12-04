@@ -485,15 +485,45 @@ function getChannel(channelId) {
 //     });
 // }
 
+
+function parseMessageWithCodeBlocks(input) {
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    const attachments = [];
+    let message = input;
+    let match;
+
+    let i=0;
+    while ((match = codeBlockRegex.exec(input)) !== null) {
+        i++;
+        const ext = match[1] || 'txt';
+        const code = match[2].trim(); // Extract code block content
+        const filename = ext==='txt' ? `text_${i}.txt` : `code_${i}.${ext}`;
+        attachments.push({ data: code, name: filename, type: ext });
+        // Replace the code block with a placeholder in the message
+        message = message.replace(match[0], `\n_(see attachment ${filename})_\n`);
+    }
+
+    return {
+        message: message,
+        attachments
+    };
+}
+
 function sendMessage(channelId, message, options, attachments = [ ]) {
     return new Promise((resolve, reject) => {
         debug(`Sending message in channel '${channelId}'`);
         const formData = new FormData();
+
+        const parsedMessage = parseMessageWithCodeBlocks(message);
+        
         formData.append("payload_json", JSON.stringify({
-            content: message.length > 2000 ? `${message.substring(0, 2000 - 3)}...` : message,
+            content: parsedMessage.message.length > 2000 ? `${parsedMessage.message.substring(0, 2000 - 3)}...` : parsedMessage.message,
             ...(options || {})
         }));
-        if (message.length > 2000) attachments?.push({ name: `${config.longMessageFileName}.txt`, type: "text/plain", data: message });
+
+        if (parsedMessage.message.length > 2000) attachments?.push({ name: `${config.longMessageFileName}.txt`, type: "text/plain", data: parsedMessage.message });
+        if (parsedMessage.attachments.length) attachments?.push(...parsedMessage.attachments);
+        
         for (const attachmentIndex in attachments) {
             const attachment = attachments[attachmentIndex];
             formData.append(`files[${attachmentIndex}]`, new Blob([attachment.data], { type: attachment.type }), attachment.name);
