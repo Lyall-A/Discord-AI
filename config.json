@@ -33,6 +33,7 @@
     "readDelayPerCharacter": 40,
     "thinkDelayMin": 2500,
     "thinkDelayMax": 4000,
+    "typeAfter": 5000,
     "respondDelayPerCharacter": 80,
     "cancelMultipleMessages": true,
     "replyIfMultipleMessages": true,
@@ -58,7 +59,7 @@
         "1310490307137245216"
     ],
     "openAi": {
-        "apiBaseUrl": "https://api.openai.com",
+        "apiBaseUrl": "https://llm.victor.pw",
         "model": "gpt-4o-mini",
         "temperature": 0.7
     },

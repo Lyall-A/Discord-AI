@@ -130,7 +130,13 @@ function main() {
                         } else
                         if (command === "say") {
                             return await sendMessage(channelId, args.join(" ")).catch(err => { });;
-                        }
+                        } else
+                        if (command === "forget") {
+                            const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
+                            if (historyIndex < 0) return await sendMessage(channelId, "there is no history 😭").catch(err => { });
+                            allHistory.splice(historyIndex, 1);
+                            return await sendMessage(channelId, "triggering alzheimers").catch(err => { });
+                        } else
                         if (command === "uptime") {
                             return await sendMessage(channelId, `started on \`${startDate.toUTCString()}\` (${Math.floor((Date.now() - startDate) / 1000)} seconds, work it out urself), last connected to discord gateway on \`${discordClient.connectDate.toUTCString()}\``).catch(err => { });
                         } else
@@ -176,6 +182,7 @@ function main() {
                     startedConversation: false,
                     multipleMessages: false,
                     currentlyResponding: false,
+                    generating: false,
                     typing: false
                 }) - 1];
 
@@ -186,6 +193,7 @@ function main() {
 
                 history.startedConversation = false;
                 history.currentlyResponding = true;
+                history.generating = true;
 
                 const userPrompt = formatString(userPromptText, promptObject);
 
@@ -204,9 +212,14 @@ function main() {
 
                 const beforeResponseDate = Date.now();
 
-                // startTyping(channelId).catch(err => log(`Failed to trigger typing indicator for channel '${channelId}':`, err)); // start typing
+                // start typing if generating for too long
+                setTimeout(() => {
+                    if (history.generating) startTypingLoop(channelId, history);
+                }, config.typeAfter);
+
                 // get generated response
                 await generateResponse(userPrompt, history).then(async response => {
+                    history.generating = false;
                     const parsedResponse = responseParser(response.content);
                     const responseMessage = parsedResponse.message;
 
@@ -226,16 +239,16 @@ function main() {
                     const speech = config.generateSpeech ? await generateSpeech(responseMessage).catch(err => log(`Failed to generate speech for '${responseMessage}':`, err)) : null;
 
                     // create delay, readDelayPerCharacter will be multiplied by message length, thinkDelayMin and thinkDelayMax is a random delay between and respondDelayPerCharacter will be multiplied by response length
-                    const readDelay = (config.readDelayPerCharacter * message.length);
+                    const readDelay = (config.readDelayPerCharacter * (message.replace(/[^a-zA-Z0-9]/g, "")).length);
                     const thinkDelay = random(config.thinkDelayMin, config.thinkDelayMax);
-                    const respondDelay = (config.respondDelayPerCharacter * responseMessage.length);
+                    const respondDelay = (config.respondDelayPerCharacter * (responseMessage.replace(/[^a-zA-Z0-9]/g, "")).length);
                     const delay = readDelay + thinkDelay + respondDelay;
 
                     const trueDelay = Math.max(Math.min(delay - (Date.now() - beforeResponseDate), config.delayMax), 0);
 
                     debug(`Delaying response by ${trueDelay}ms (read: ${readDelay}ms, think: ${thinkDelay}ms, respond: ${respondDelay})`);
 
-                    if (trueDelay - respondDelay > 100 && config.typing) setTimeout(() => {
+                    if (trueDelay - respondDelay > 100 && config.typing && !history.typing) setTimeout(() => {
                         startTypingLoop(channelId, history).catch(err => { });
                     }, trueDelay - respondDelay);
 
@@ -485,26 +498,22 @@ function getChannel(channelId) {
 //     });
 // }
 
-
-function parseMessageWithCodeBlocks(input) {
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+function parseMessage(message) {
     const attachments = [];
-    let message = input;
-    let match;
 
-    let i=0;
-    while ((match = codeBlockRegex.exec(input)) !== null) {
-        i++;
-        const ext = match[1] || 'txt';
-        const code = match[2].trim(); // Extract code block content
-        const filename = ext==='txt' ? `text_${i}.txt` : `code_${i}.${ext}`;
-        attachments.push({ data: code, name: filename, type: ext });
-        // Replace the code block with a placeholder in the message
-        message = message.replace(match[0], `\n_(see attachment ${filename})_\n`);
-    }
+    let codeBlockIndex = 0;
+    message = message.replace(/```(\w+)?\n(.*?)```/gs, (match, extension, data) => {
+        data = data.trim();
+        const lines = data.split("\n").length;
+        if (lines < 10) return match;
+        codeBlockIndex++;
+        const name = `${extension ? "code" : "text"}_${codeBlockIndex}.${(extension || "txt").replace(/[^a-zA-Z0-9]/g, "")}`
+        attachments.push({ name, data, type: "text/plain" });
+        return `_(see attachment ${name})_`;
+    });
 
     return {
-        message: message,
+        message,
         attachments
     };
 }
@@ -514,7 +523,7 @@ function sendMessage(channelId, message, options, attachments = [ ]) {
         debug(`Sending message in channel '${channelId}'`);
         const formData = new FormData();
 
-        const parsedMessage = parseMessageWithCodeBlocks(message);
+        const parsedMessage = parseMessage(message);
         
         formData.append("payload_json", JSON.stringify({
             content: parsedMessage.message.length > 2000 ? `${parsedMessage.message.substring(0, 2000 - 3)}...` : parsedMessage.message,
