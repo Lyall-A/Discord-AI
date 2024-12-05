@@ -98,7 +98,9 @@ function main() {
                 const isGroupChat = channel.type === 3;
                 const type = isServer ? "Server" : isDm ? "DM" : isGroupChat ? "Group Chat" : null;
                 const message = data.content
-                    .replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.global_name || discordClient.user.username); // replace mention with username
+                .replace(new RegExp(`<@${discordClient.user.id}>`, "g"), discordClient.user.global_name || discordClient.user.username); // replace mention with username
+
+                let bypassPrompt = null;
 
                 if (data.author.id === discordClient.user.id) return; // message from self
                 if (data.author.bot && !config.respondToBots) return; // bot
@@ -133,9 +135,12 @@ function main() {
                         } else
                         if (command === "forget") {
                             const historyIndex = allHistory.findIndex(i => i.channelId === channelId);
-                            if (historyIndex < 0) return await sendMessage(channelId, "there is no history 😭").catch(err => { });
+                            if (historyIndex < 0) return await sendMessage(channelId, "i got nothinggg").catch(err => { });
                             allHistory.splice(historyIndex, 1);
                             return await sendMessage(channelId, "triggering alzheimers").catch(err => { });
+                        } else
+                        if (command === "no-prompt") {
+                            bypassPrompt = args.join(" ");
                         } else
                         if (command === "uptime") {
                             return await sendMessage(channelId, `started on \`${startDate.toUTCString()}\` (${Math.floor((Date.now() - startDate) / 1000)} seconds, work it out urself), last connected to discord gateway on \`${discordClient.connectDate.toUTCString()}\``).catch(err => { });
@@ -218,14 +223,14 @@ function main() {
                 }, config.typeAfter);
 
                 // get generated response
-                await generateResponse(userPrompt, history).then(async response => {
+                await generateResponse(bypassPrompt || userPrompt, bypassPrompt ? null : history).then(async response => {
                     history.generating = false;
                     const parsedResponse = responseParser(response.content);
-                    const responseMessage = parsedResponse.message;
+                    const responseMessage = bypassPrompt ? response.content : parsedResponse.message;
 
                     if (config.ignoreHistory) addHistory(response, history); // add response to history even if it is an ignored response
 
-                    if (parsedResponse.ignored || !parsedResponse.message) {
+                    if (!bypassPrompt && (parsedResponse.ignored || !parsedResponse.message)) {
                         log(`[${channelId}]`, "[Ignored]", `"${message.replace(/\n/g, " ")}"${parsedResponse.ignoredReason ? `. Reason: ${parsedResponse.ignoredReason}` : ""}`);
                         if (config.debug) sendMessage(channelId, `[DEBUG] Ignored${parsedResponse.ignoredReason ? ` for '${parsedResponse.ignoredReason}'` : ""}`).catch(err => { });
                         history.multipleMessages = false;
@@ -564,10 +569,10 @@ function generateResponse(prompt, history) {
         // debug(`Generating response for '${prompt}'`);
         debug("Generating response");
 
-        if (prompt) addHistory({ role: "user", content: prompt }, history);
+        if (prompt && history) addHistory({ role: "user", content: prompt }, history);
 
-        const messages = [...history.messages];
-        if (history.systemPrompt) messages.unshift({
+        const messages = [...(history?.messages || [{ role: "user", content: prompt }])];
+        if (history?.systemPrompt) messages.unshift({
             role: "system",
             content: history.systemPrompt
         });
@@ -588,7 +593,7 @@ function generateResponse(prompt, history) {
             if (response.status === 200 && json?.id) {
                 debug(`Generated response used ${json.usage.prompt_tokens} tokens for prompt and ${json.usage.completion_tokens} tokens for completion (${json.usage.total_tokens} total)`);
                 const message = json.choices[0].message;
-                history.lastUpdated = Date.now();
+                if (history) history.lastUpdated = Date.now();
                 resolve(message);
             } else {
                 const error = `Got status code ${response.status}, error: ${json?.error}`;
