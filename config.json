@@ -1,0 +1,14 @@
+{
+    "discord": {
+        "apiBaseUrl": "https://discord.com/api/v10",
+        "gatewayBaseUrl": "wss://gateway.discord.gg",
+        "intents": 4608,
+        "properties": {
+            "os": null,
+            "browser": null,
+            "device": null
+        }
+    },
+    "selfBot": false,
+    "gatewayReconnectTimeout": 30000
+}
