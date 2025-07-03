@@ -1,0 +1,13 @@
+{
+    "include": {
+        "guilds": ["1309396066482786315"],
+        "channels": [],
+        "users": []
+    },
+    "exclude": {
+        "guilds": [],
+        "channels": [],
+        "users": []
+    },
+    "bots": false
+}

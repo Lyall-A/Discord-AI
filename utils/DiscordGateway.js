@@ -1,5 +1,4 @@
 const { EventEmitter } = require("events");
-const { WebSocket } = require("ws");
 
 const config = require("../config.json");
 const secrets = require("../secrets.json");
@@ -10,13 +9,13 @@ class DiscordGateway extends EventEmitter {
 
         this.webSocket = new WebSocket(config.discord.gatewayBaseUrl);
 
-        this.webSocket.on("open", () => {
+        this.webSocket.addEventListener("open", () => {
 
         });
 
-        this.webSocket.on("message", msg => {
+        this.webSocket.addEventListener("message", msg => {
             let json;
-            try { json = JSON.parse(msg); } catch (err) { return; };
+            try { json = JSON.parse(msg.data); } catch (err) { return; };
             
             const event = {
                 name: json.t,
@@ -106,7 +105,7 @@ class DiscordGateway extends EventEmitter {
     identify() {
         return new Promise((resolve, reject) => {
             this.send(2, {
-                token: secrets.discordToken,
+                token: secrets.discord.token,
                 intents: config.discord.intents,
                 properties: config.discord.properties,
                 presence: {

@@ -3,12 +3,28 @@
         "apiBaseUrl": "https://discord.com/api/v10",
         "gatewayBaseUrl": "wss://gateway.discord.gg",
         "intents": 4608,
+        "maxMessageLength": 2000,
+        "splitLargeMessages": true,
+        "attachmentSizeLimit": 10485760,
         "properties": {
             "os": null,
             "browser": null,
             "device": null
         }
     },
+    "openAi": {
+        "model": "qwen/qwen3-8b",
+        "apiBaseUrl": "http://192.168.1.86:1234/v1"
+    },
+    "storeMemories": true,
+    "memories": 20,
+    "memoriesTruncateTimeout": 30000,
+    "memoriesClearTimeout": 1800000,
+    "memoryPath": "memory",
+    "messageHistory": 16,
+    "messageHistoryTruncateTimeout": 30000,
+    "messageHistoryClearTimeout": 1800000,
+    "matchPath": "match.json",
     "selfBot": false,
     "gatewayReconnectTimeout": 30000
 }

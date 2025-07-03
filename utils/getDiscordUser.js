@@ -1,7 +1,10 @@
-const discordAPI = require("./discordAPI");
+const discordApi = require("./discordApi");
 
 function getDiscordUser(userId = "@me") {
-    return discordAPI(`/users/${userId}`).then(res => res.json);
+    return discordApi(`/users/${userId}`).then(res => {
+        if (res.status !== 200) throw new Error(`Got status code ${res.status}`);
+        return res.json;
+    });
 }
 
 module.exports = getDiscordUser;

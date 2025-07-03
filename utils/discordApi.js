@@ -2,11 +2,13 @@ const config = require("../config.json");
 const secrets = require("../secrets.json");
 
 function discordAPI(path, options = { }) {
+    const headers = { };
+    if (options.json) headers["Content-Type"] = "application/json";
     return fetch(`${config.discord.apiBaseUrl}${path}`, {
         method: options.method ?? "GET",
         headers: {
-            "Authorization": `${config.selfBot ? "" : "Bot "}${secrets.discordToken}`,
-            "Content-Type": (options.json ? "application/json" : options.contentType) ?? undefined
+            "Authorization": `${config.selfBot ? "" : "Bot "}${secrets.discord.token}`,
+            ...headers
         },
         body: (options.json ? JSON.stringify(options.json) : options.body) ?? undefined
     }).then(async res => {
