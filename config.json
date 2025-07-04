@@ -14,17 +14,29 @@
     },
     "openAi": {
         "model": "qwen/qwen3-8b",
-        "apiBaseUrl": "http://192.168.1.86:1234/v1"
+        "apiBaseUrl": "https://llm.victor.pw/v1",
+        "apiBaseUrl2": "http://192.168.1.86:1234/v1"
     },
+    "matchPath": "match.json",
+    "selfBot": false,
+    "ignorePrefix": ["!", "."],
+    "gatewayReconnectTimeout": 30000,
+    "readSpeed": 50,
+    "typeSpeed": 50,
     "storeMemories": true,
+    "startConversations": true,
+    "startConversationInterval": 600000,
+    "replyToUser": false,
+    "replyIfActive": true,
+    "replyMention": false,
+    "maxSimultaneousResponses": 1,
+    "responseDelay": 1000,
+    "channelClearInterval": 600000,
     "memories": 20,
     "memoriesTruncateTimeout": 30000,
     "memoriesClearTimeout": 1800000,
     "memoryPath": "memory",
     "messageHistory": 16,
     "messageHistoryTruncateTimeout": 30000,
-    "messageHistoryClearTimeout": 1800000,
-    "matchPath": "match.json",
-    "selfBot": false,
-    "gatewayReconnectTimeout": 30000
+    "messageHistoryClearTimeout": 1800000
 }

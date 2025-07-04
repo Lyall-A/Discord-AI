@@ -1,7 +1,7 @@
 const config = require("../config.json");
 const secrets = require("../secrets.json");
 
-function discordAPI(path, options = { }) {
+function discordApi(path, options = { }) {
     const headers = { };
     if (options.json) headers["Content-Type"] = "application/json";
     return fetch(`${config.discord.apiBaseUrl}${path}`, {
@@ -24,4 +24,4 @@ function discordAPI(path, options = { }) {
     });
 }
 
-module.exports = discordAPI;
+module.exports = discordApi;

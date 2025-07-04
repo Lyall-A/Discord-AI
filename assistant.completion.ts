@@ -1,4 +1,4 @@
-import { Completion } from "../types"
+import { Completion } from "./types"
 
 export function createAssistantCompletion(completion: any): Completion {
     const content = completion.message.content;

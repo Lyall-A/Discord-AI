@@ -1,0 +1,11 @@
+{
+  "name": "discord-ai",
+  "version": "1.0.0",
+  "description": "Have a anime girl DM you on Discord!",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Lyall-A",
+  "license": "ISC"
+}

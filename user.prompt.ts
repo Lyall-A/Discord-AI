@@ -1,4 +1,4 @@
-import { Prompt } from "../types";
+import { Prompt } from "./types";
 
 export function createUserPrompt(prompt: Prompt): string {
     return `

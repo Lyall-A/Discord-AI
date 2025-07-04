@@ -1,14 +1,14 @@
 export type Prompt = {
-    memories: Memory[];
+    channel: Channel;
     date: string;
     id: string;
     messageId: string;
-    channelId: string;
     guildId?: string;
-    // channelType: null; // TODO
     // attachments: null; // TODO
     mentionEveryone: boolean;
     tts: boolean;
+    type: number;
+    typeString?: string;
     username: string;
     name: string; // Is this optional? unsure
     nickname?: string;
@@ -33,24 +33,28 @@ export type Memory = {
     importance: number;
 }
 
-export type GuildMemories = {
-    guildId: string;
-    restartTimeouts: Function;
-    truncateTimeout?: NodeJS.Timeout;
-    clearTimeout?: NodeJS.Timeout;
-    memories: Memory[];
-}
-
 export type Message = {
     role: string;
     content: string;
     prompt: Prompt;
 }
 
-export type MessageHistory = {
-    channelId: string;
-    restartTimeouts: Function;
-    truncateTimeout?: NodeJS.Timeout;
-    clearTimeout?: NodeJS.Timeout;
-    messages: Message[];
+export type Channel = {
+    id: number;
+    name?: string,
+    topic?: string,
+    nsfw?: boolean,
+    rateLimit?: number,
+    lastResponse?: number;
+    lastMessage?: number;
+    currentlyResponding: number;
+    resetTimeouts: Function;
+    timeouts: {
+        clearMemories?: NodeJS.Timeout;
+        truncateMemories?: NodeJS.Timeout;
+        clearMessageHistory?: NodeJS.Timeout;
+        truncateMessageHistory?: NodeJS.Timeout;
+    };
+    memories: Memory[];
+    messageHistory: Message[];
 }

@@ -1,9 +1,16 @@
-const { EventEmitter } = require("events");
+import { EventEmitter } from "events";
 
-const config = require("../config.json");
-const secrets = require("../secrets.json");
+import config from "../config.json";
+import secrets from "../secrets.json";
 
-class DiscordGateway extends EventEmitter {
+export class DiscordGateway extends EventEmitter {
+    webSocket: WebSocket;
+    heartbeatInterval: number;
+    heartbeatTimeout: NodeJS.Timeout;
+    heartbeatAckTimeout: number = 2000;
+    ready: any;
+    readyTimeout: number = 4000;
+
     constructor(options = { }) {
         super();
 
@@ -14,7 +21,7 @@ class DiscordGateway extends EventEmitter {
         });
 
         this.webSocket.addEventListener("message", msg => {
-            let json;
+            let json: GatewayMessage;
             try { json = JSON.parse(msg.data); } catch (err) { return; };
             
             const event = {
@@ -60,24 +67,17 @@ class DiscordGateway extends EventEmitter {
         });
     }
 
-    webSocket = null;
-    heartbeatInterval = null;
-    heartbeatTimeout = null;
-    heartbeatAckTimeout = 2000;
-    ready = null;
-    readyTimeout = 4000;
-
     close() {
         this.webSocket.close();
         if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
     }
 
-    error(msg) {
+    error(msg: string) {
         this.close();
         this.emit("error", msg);
     }
 
-    send(op, data = null) {
+    send(op: number, data: any = null) {
         // console.log(op, data);
         this.webSocket.send(JSON.stringify({
             op,
@@ -97,7 +97,7 @@ class DiscordGateway extends EventEmitter {
 
             function heartbeatAckListener() {
                 clearTimeout(timeout);
-                resolve();
+                resolve(undefined);
             }
         });
     }
@@ -128,4 +128,9 @@ class DiscordGateway extends EventEmitter {
     }
 }
 
-module.exports = DiscordGateway;
+export type GatewayMessage = {
+    op: number;
+    d?: any;
+    s?: number;
+    t?: string;
+};

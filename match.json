@@ -2,12 +2,14 @@
     "include": {
         "guilds": ["1309396066482786315"],
         "channels": [],
-        "users": []
+        "users": [],
+        "channelTypes": []
     },
     "exclude": {
         "guilds": [],
         "channels": [],
-        "users": []
+        "users": [],
+        "channelTypes": []
     },
     "bots": false
 }

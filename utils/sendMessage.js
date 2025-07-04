@@ -1,10 +1,20 @@
 const discordApi = require("./discordApi");
 
-function sendMessage(channelId, message, params = { }) {
+function sendMessage(channelId, content, params = { }) {
     const formData = new FormData();
-    formData.set("payload_json", JSON.stringify({
-        content: message
-    }));
+
+    const message = { content };
+    if (params.reply) {
+        message.message_reference = {
+            type: 0,
+            message_id: params.reply.messageId,
+        }
+        message.allowed_mentions = {
+            replied_user: params.reply.mention ? true : false
+        }
+    }
+
+    formData.set("payload_json", JSON.stringify(message));
 
     return discordApi(`/channels/${channelId}/messages`, {
         method: "POST",
